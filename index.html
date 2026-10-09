@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="vi"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ANG Calculator</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2f4652">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ANG">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head><body>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#eef1f2; --panel:#ffffff; --ink:#1b2328; --muted:#5b6970; --line:#d3dbdf;
+  --accent:#c2571a; --steel:#2f4652; --warn-bg:#fff4b8; --warn-ink:#5c4a00; --bad:#b3261e;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --sans:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#121719; --panel:#1a2125; --ink:#e4eaed; --muted:#95a4ab; --line:#2d373c;
+    --accent:#f08a4b; --steel:#a9c2cf; --warn-bg:#3d3510; --warn-ink:#f3e08a; --bad:#ff8a80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121719; --panel:#1a2125; --ink:#e4eaed; --muted:#95a4ab; --line:#2d373c;
+  --accent:#f08a4b; --steel:#a9c2cf; --warn-bg:#3d3510; --warn-ink:#f3e08a; --bad:#ff8a80; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5}
+.wrap{max-width:760px;margin:0 auto;padding-inline:16px;padding-block:18px 40px;display:flex;flex-direction:column;gap:14px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;min-height:44px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:700 16px var(--sans);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--steel);border-color:var(--steel);color:var(--panel)}
+header h1{margin:0;font-size:22px;letter-spacing:-.01em;text-wrap:balance}
+header p{margin:2px 0 0;color:var(--muted);font-size:13px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+.label{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em;margin-bottom:6px}
+.hint{font-size:12.5px;color:var(--muted);margin:0 0 10px}
+.btn{min-height:40px;padding:8px 14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;font:inherit;font-size:14px;cursor:pointer}
+.btn.cadbtn{background:#ffd23f;border-color:#e0a800;color:#1b2328;font-weight:700}
+.btn.small{justify-self:start;min-height:32px;padding:4px 10px;font-size:13px}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* CAD sheet with boxes placed on the drawing */
+.sheet{background:#222a33;border-radius:10px;padding:6px;overflow:hidden;position:relative}
+.maker{position:absolute;right:12px;bottom:8px;text-align:right;font-size:11.5px;line-height:1.45;color:#9fb0bf}
+.maker b{color:#e9edf0;font-weight:600}
+@media (max-width:600px){.maker{position:static;padding:2px 6px 4px}}
+html,body{overflow-x:hidden}
+.board{position:relative;width:100%;max-width:520px;margin:0 auto}
+.board svg{display:block;width:100%;height:auto}
+.box{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none}
+.box .cap{font-size:11.5px;line-height:1.1;color:#e9edf0;white-space:nowrap;background:rgba(34,42,51,.85);padding:0 3px;border-radius:3px}
+.box[hidden]{display:none}
+.box .cap.final{font-weight:700;color:#ffd23f}
+.box input,.box output{pointer-events:auto;width:64px;height:26px;font:700 13.5px var(--mono);text-align:center;padding:0 2px;font-variant-numeric:tabular-nums}
+/* 1) 입력 칸: 흰 바탕 + 분홍 테두리 */
+.box input{border:2px solid #ff3df5;background:#ffffff;color:#1b2328;border-radius:3px}
+/* 숫자 칸의 위아래 화살표(스피너) 없앰 */
+.box input::-webkit-outer-spin-button,.box input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.box input[type=number]{-moz-appearance:textfield;appearance:textfield}
+/* 앵글 규격 칸 (앵글사이즈·T, 반드시 입력): 하늘색 바탕 + 파란 테두리 */
+.box input.spec{border-color:#2f8cff;background:#d6ebff;color:#0d2a4d}
+.box input::placeholder{color:#a0479c;opacity:.8;font-weight:500}
+/* 2) 계산 칸: 초록 바탕 */
+.box output{display:flex;align-items:center;justify-content:center;background:#23a05a;color:#ffffff;border:2px solid #8ff0b6;border-radius:3px}
+/* 3) 값 칸: 크고 노란 바탕 */
+.box output.final{width:90px;height:36px;font-size:18px;background:#ffd23f;color:#1b2328;border:3px solid #ff8a00;border-radius:4px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;justify-content:center;font-size:12.5px;color:#e9edf0;padding:8px 4px 4px}
+/* 폰 화면: 칸을 조금 작게 해서 서로 덜 겹치게 */
+@media (max-width:520px){
+  .box input,.box output{width:52px;height:24px;font-size:12.5px}
+  .box output.final{width:72px;height:30px;font-size:15px;border-width:2px}
+  .box .cap{font-size:10px}
+}
+.ver{font-size:11px;color:var(--muted);margin-left:6px;font-weight:400}
+.legend i{display:inline-block;width:18px;height:12px;margin-right:5px;vertical-align:-1px;border-radius:2px}
+.legend i.sp{border:2px solid #2f8cff;background:#d6ebff}
+.legend i.in{border:2px solid #ff3df5;background:#fff}
+.legend i.o{background:#23a05a;border:2px solid #8ff0b6}
+.legend i.f{background:#ffd23f;border:2px solid #ff8a00}
+
+.err{color:var(--bad);font-weight:700}
+.results{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.card h3{margin:0 0 8px;font-size:14px;color:var(--steel)}
+.row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px dashed var(--line)}
+.row:first-of-type{border-top:0}
+.row span{color:var(--muted);font-size:13px}
+.row b{font:700 17px var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.row b.hi{color:var(--accent);font-size:20px}
+.verify{background:var(--warn-bg);color:var(--warn-ink);border-radius:8px;padding:8px 10px;font-size:13px}
+.note{color:var(--muted);font-size:12.5px;margin:0;padding-left:18px}
+.note li{margin:2px 0}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:3px}
+.field .in{display:flex;align-items:center;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.field input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:500 15px var(--sans);padding:9px 10px}
+.hrow{border-top:1px dashed var(--line);padding:10px 0;display:grid;gap:3px}
+.hrow:first-child{border-top:0;padding-top:0}
+.hhead{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.hhead span,.hsub{color:var(--muted);font-size:12.5px}
+.hvals{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.hvals b{color:var(--accent)}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="tabs" role="tablist">
+      <button type="button" role="tab" id="tabA" data-type="A">A타입</button>
+      <button type="button" role="tab" id="tabB" data-type="B">B타입</button>
+      <button type="button" role="tab" id="tabC" data-type="C">C타입</button>
+      <button type="button" role="tab" id="tabD" data-type="D">D타입</button>
+      <button type="button" role="tab" id="tabE" data-type="E">E타입</button>
+      <button type="button" role="tab" id="tabF" data-type="F">F타입</button>
+    </div>
+    <h1 id="ttl">A타입 앵글 계산기</h1>
+    <p id="sub">① 세로 앵글 + ② 빗대 앵글. 흰 입력 칸에 값을 넣으면 초록 계산 칸과 노란 값 칸이 나옵니다.</p>
+  </header>
+
+  <section class="sheet">
+    <div class="board" id="board">
+      <svg id="svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div class="legend"><span><i class="sp"></i>규격 (반드시 입력)</span><span><i class="in"></i>입력 칸</span><span><i class="o"></i>계산 칸</span><span><i class="f"></i>값</span></div>
+    <div class="maker">만든이 <b>theweek-uk</b><br>마지막 업데이트 <b>2026-10-09</b></div>
+  </section>
+
+  <section class="results" id="results"></section>
+
+  <section class="panel">
+    <div class="label">저장한 기록</div>
+    <div class="field" style="margin-bottom:10px"><label for="memo">메모 (선택, 저장할 때 같이 기록)</label><div class="in"><input id="memo" type="text" placeholder="예: B681 서포트"></div></div>
+    <div id="hist"></div>
+  </section>
+
+  <section class="panel">
+    <ul class="note" id="noteA">
+      <li>A타입: ② 바깥선은 가로값 거리 지점(바닥)에서 각도대로 올라가 ① 두께(T) 안쪽면에서 끝납니다. 위 끝은 ① 면에 맞춰 세로로, 아래 끝은 바닥에 맞춰 수평으로 자릅니다.</li>
+      <li>값 = ② 두께선 길이 (① T면 → 바닥).</li>
+      <li>세로값 거리 = 바닥에서 ② 위 끝(① T면에 닿는 점)까지. 가로값 거리 = ① 바깥면(세워진 앵글 끝)에서 ② 아래 끝(바닥)까지.</li>
+      <li>세로값·가로값·각도 중 마지막에 넣은 두 개로 나머지 하나를 계산합니다. 각도는 위·아래 중 하나만 넣으면 됩니다.</li>
+      <li>표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteC" hidden>
+      <li>C타입: ① 과 ② 를 각도대로 맞대기(마이터) 이음. 각도·앵글사이즈·T만 넣으면 이음 단차 두 개를 계산합니다.</li>
+      <li>안쪽끝 → T선 = (앵글사이즈 − T) × tan(꺾인 각의 절반), T선 → 바깥 모서리 = T × tan(꺾인 각의 절반). 꺾인 각 = 180 − 사이각.</li>
+      <li>그림의 길이는 모양만 보여 주는 그림이고 실제 길이가 아닙니다.</li>
+      <li>표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteD" hidden>
+      <li>D타입: C타입과 같은 맞대기(마이터) 이음에 길이까지 계산합니다.</li>
+      <li>① 길이 = ① 바깥(위) 길이 (비워도 됨). 가로값·세로값 = 바깥 모서리에서 ② 바깥 끝까지. 가로값·세로값·각도 중 마지막에 넣은 두 개로 나머지를 계산합니다.</li>
+      <li>값 = ② 두께선 길이 (이음선이 ① T선과 만나는 점 → ② 끝) = 바깥 길이 − T × tan(꺾인 각의 절반).</li>
+      <li>안쪽 길이 = 바깥 길이 − 앵글사이즈 × tan(꺾인 각의 절반). ② 끝은 직각 절단.</li>
+      <li>표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteE" hidden>
+      <li>E타입: ① 과 ② 를 맞대기(마이터) 이음하고, ② 아래 끝은 ① 과 나란히(수평) 자릅니다.</li>
+      <li>위 이음: 안쪽끝 → T선 = (앵글사이즈 − T) × tan(꺾인 각의 절반), T선 → 바깥 = T × tan(꺾인 각의 절반).</li>
+      <li>아래 끝: 안쪽끝 → T선 = (앵글사이즈 − T) ÷ tan(꺾인 각), T선 → 바깥 끝 = T ÷ tan(꺾인 각). 꺾인 각 = 180 − 사이각.</li>
+      <li>길이 = ② 두께선 길이(입력, 비워도 됨). 넣으면 ② 바깥선·안쪽선 길이도 계산합니다.</li>
+      <li>그림은 모양만 보여 주는 고정 그림입니다. 표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteP" hidden>
+      <li>이경 가지관: 본관(세로 파이프)에 지관(빗대 파이프)이 붙고 바닥까지 내려옵니다. 계산식은 dev 폴더 "PIPE 전개도 좌표식" 엑셀의 지관 전개식과 같습니다(15~60도는 지관 외경, 75~180도는 지관 내경 사용).</li>
+      <li>높이 = 바닥에서 두 파이프 중심선이 만나는 점까지. 가로값 = 본관 중심에서 지관 중심선이 바닥에 닿는 점까지. 높이·가로값·각도 중 두 개만 넣으면 됩니다.</li>
+      <li>위 본 H = 본관에 맞춘 안장 모양 감는 본의 높이, 아래 본 H = 바닥에 맞춘 감는 본의 높이. 감는 본 폭 = 지관 외경 둘레.</li>
+      <li>외경·두께 참고(SGP): 25A 34.0×3.2 · 32A 42.7×3.5 · 40A 48.6×3.5 · 50A 60.5×3.8 · 65A 76.3×4.2 · 80A 89.1×4.2 · 100A 114.3×4.5.</li>
+      <li>PC 프로그램에서 "CAD 저장"을 누르면 위크 스타일 DWG(측면도 + 감는 본)가 만들어집니다. 표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteQ" hidden>
+      <li>T자 가지관: 세로 본관 옆에 지관이 직각(90°)으로 붙는 타입. 지관 끝을 본관 둥근 면에 맞춰 안장 모양으로 자릅니다.</li>
+      <li>지관 길이 = 본관 바깥 면 ~ 지관 끝 (그림에서 보이는 위·아래 선 길이 = 짧은 쪽). 비워도 감는 본 H 는 나옵니다.</li>
+      <li>감는 본 H = 본관 R − √(본관 R² − 지관 안쪽 반경²). 값(긴 쪽) = 지관 길이 + 감는 본 H (안쪽 면 기준, 이경 가지관과 같은 기준).</li>
+      <li>본 높이: 엑셀 "PIPE 전개도 좌표식" 지관 식과 같음(0~60°는 지관 외경, 75~90°는 지관 내경). 둘레를 24등분해서 짧은 쪽 끝에서 위로 잽니다.</li>
+      <li>외경·두께 참고(SGP): 25A 34.0×3.2 · 32A 42.7×3.5 · 40A 48.6×3.5 · 50A 60.5×3.8 · 65A 76.3×4.2 · 80A 89.1×4.2 · 100A 114.3×4.5. 표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteM" hidden>
+      <li>파이프 꺾음: 파이프 두 조각을 각도대로 맞대기(마이터) 이음하는 타입. 각도 = 두 파이프 사이 각도(예 135).</li>
+      <li>이음 단차 = 짧은 쪽 바깥 면 끝 → 긴 쪽 안쪽 면(두께 뺀 선) 끝 = (외경 ÷ 2 + 내경 ÷ 2) × tan(꺾인 각의 절반), 꺾인 각 = 180 − 사이각. 예: 80A 135° → 35.</li>
+      <li>두께 = 긴 쪽 안쪽 면 끝 → 바깥 모서리 = T × tan(꺾인 각의 절반). 예: 4.2 × tan(22.5°) = 2.</li>
+      <li>짧은 쪽 길이(바깥 면)를 넣으면 값(긴 쪽, 안쪽 면) = 짧은 쪽 + 이음 단차, 중심선 = 짧은 쪽 + 외경 ÷ 2 × tan. 두 조각 모두 같은 식입니다.</li>
+      <li>본 높이: 둘레를 24등분해서 짧은 쪽 끝에서 위로 잽니다(0° = 짧은 쪽, 180° = 긴 쪽, 0~60°는 외경·75~180°는 내경 — 엑셀 좌표식과 같은 규칙). 표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteR" hidden>
+      <li>가지관+꺾음: 이경 가지관과 같은데, 지관 아래 끝이 바닥까지 가지 않고 세로관에 맞대기(마이터)로 꺾여 붙습니다. 세로관은 바닥에서 직각 절단.</li>
+      <li>높이 = 바닥 ~ 본관·지관 중심선 교점. 가로값 = 본관 중심 ~ 세로관 중심. 각도 = 지관과 본관(세로) 사이. 세 개 모두 넣어야 합니다.</li>
+      <li>지관 길이는 안쪽 면(두께 뺀 선) 기준 — 이경 가지관(812)과 같은 기준. 위 끝은 본관 안장, 아래 끝은 꺾임 이음.</li>
+      <li>세로관: 짧은 쪽 = 바닥 ~ 안쪽(꺾이는 쪽) 바깥 면 끝, 긴 쪽 = 바닥 ~ 바깥쪽 안쪽 면 끝(파이프 꺾음과 같은 기준). 꺾임 단차 = (외경 ÷ 2 + 내경 ÷ 2) × tan(각도 ÷ 2).</li>
+      <li>표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteS" hidden>
+      <li>T자 양쪽 본관: 본관 두 개 사이에 지관이 직각(90°)으로 들어가는 타입. 지관 양쪽 끝 모두 안장 모양.</li>
+      <li>중심 거리(본관 중심 ~ 본관 중심) 또는 지관 길이(본관 면 ~ 본관 면, 짧은 쪽) 중 하나만 넣으면 나머지가 나옵니다.</li>
+      <li>값(긴 쪽) = 지관 길이 + 감는 본 H × 2 (안쪽 면 기준). 본 높이는 T자 가지관과 같고 양쪽 끝에 똑같이 그립니다.</li>
+      <li>본관 두 개는 같은 규격으로 계산합니다. 표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteF" hidden>
+      <li>F타입: 세로 ① 앵글 아래 끝에 ② 앵글을 각도대로 맞대기(마이터) 이음합니다. 각도 = ① 과 ② 사이 각도(예 138.56, 소수점 가능).</li>
+      <li>이음 단차 = 앵글사이즈 × tan(꺾인 각의 절반), 꺾인 각 = 180 − 사이각. 예: 50 × tan(20.72°) = 19.</li>
+      <li>T선까지 나누면 (앵글사이즈 − T) × tan / T × tan. 그림은 모양만 보여 주는 고정 그림입니다. 표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <ul class="note" id="noteB" hidden>
+      <li>B타입: ② 가 ① 바깥면에 바로 붙습니다. 세로값 거리 = 바닥에서 ② 바깥선이 ① 면에 닿는 높이, 가로값 거리 = ① 면에서 ② 바깥선이 바닥에 닿는 점까지.</li>
+      <li>세로값·가로값·각도 중 마지막에 넣은 두 개로 나머지 하나를 계산합니다.</li>
+      <li>값 = ② 두께선 길이 (① 면 → 바닥). ① 앵글은 그림으로만 표시하고 계산에는 쓰지 않습니다.</li>
+      <li>표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.</li>
+    </ul>
+    <div style="margin-top:10px"><button type="button" class="btn" id="reset">예시 값으로 되돌리기</button></div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var DEF = {
+    A: {H:"489", B:"", T:"30", T2:"", last:"T", ord:["H","T"], b1:"50", t1:"6", b:"50", t2:"6"},
+    B: {H:"413", B:"", T:"30", T2:"", ord:["H","T"], b:"50", t2:"6"},
+    C: {T:"135", b:"50", t2:"6"},
+    D: {L1:"442", H:"302", B:"302", T:"", ord:["H","B"], b:"50", t2:"6"},
+    E: {T:"135", b:"50", t2:"6", Le:"424"},
+    F: {T:"138.56", b:"50", t2:"6"},
+    P: {H:"700", B:"", T:"30", T2:"", ord:["H","T"], odm:"89.1", tm:"4.2", od:"89.1", tb:"4.2"},
+    Q: {odm:"89.1", od:"60.5", tb:"3.8", Lq:"142.75"},
+    M: {T:"135", od:"89.1", tb:"4.2", Lm:"100"},
+    R: {H:"700", B:"257.15", T:"30", odm:"89.1", tm:"4.2", od:"89.1", tb:"4.2"},
+    S: {odm:"89.1", odm2:"89.1", od:"60.5", tb:"3.8", Cq:"231.85", Lq:"", lastL:"Cq"}
+  };
+  var ST = {A: Object.assign({}, DEF.A), B: Object.assign({}, DEF.B), C: Object.assign({}, DEF.C), D: Object.assign({}, DEF.D), E: Object.assign({}, DEF.E), F: Object.assign({}, DEF.F), P: Object.assign({}, DEF.P), Q: Object.assign({}, DEF.Q), M: Object.assign({}, DEF.M), R: Object.assign({}, DEF.R), S: Object.assign({}, DEF.S)}, TYPE = "A";
+  try {
+    var sv = JSON.parse(localStorage.getItem("angle-calc-v8") || "null");
+    if (sv) { ["A","B","C","D","E","F","P","Q","M","R","S"].forEach(function(k){ if (sv[k] && (k !== "A" || sv[k].ord)) Object.assign(ST[k], sv[k]); }); if (["B","C","D","E","F"].indexOf(sv.type) >= 0) TYPE = sv.type; }
+  } catch(e){}
+  if (!ST.C.T) ST.C.T = DEF.C.T;
+  if (location.hash === "#a") TYPE = "A"; else if (location.hash === "#b") TYPE = "B"; else if (location.hash === "#c") TYPE = "C"; else if (location.hash === "#d") TYPE = "D"; else if (location.hash === "#e") TYPE = "E"; else if (location.hash === "#f") TYPE = "F";     
+  var $ = function(id){ return document.getElementById(id); };
+  var rad = function(d){ return d*Math.PI/180; }, deg = function(r){ return r*180/Math.PI; };
+  // 모든 표시는 반올림한 정수
+  var f1 = function(x){ return String(Math.round(x)); };
+  var fd = f1;
+  // 지금 입력 중인 칸은 지우지 않는다 (예: 135 를 치는 중 "1" 만 들어간 순간에 지워지던 버그)
+  function clr(e){ if (e && e !== document.activeElement) e.value = ""; }
+  var num = function(v){ var n = parseFloat(v); return isFinite(n) ? n : null; };
+  function save(){ try { localStorage.setItem("angle-calc-v8", JSON.stringify({A:ST.A, B:ST.B, C:ST.C, D:ST.D, E:ST.E, F:ST.F, P:ST.P, Q:ST.Q, M:ST.M, R:ST.R, S:ST.S, type:TYPE})); } catch(e){} }
+  function row(k, v, hi){ return '<div class="row"><span>'+k+'</span><b'+(hi?' class="hi"':'')+'>'+v+'</b></div>'; }
+
+  // [key, caption, kind, types]  in = 입력, out = 계산, fin = 값
+  var BOXES = [
+    
+    ["L1","① 길이","in","D"],
+    ["H","세로값 거리","in","ABDPR"], ["B","가로값 거리","in","ABDPR"], ["T","각도","in","ABCDEFPMR"], ["T2","각도","in","ABDP"],
+    ["odm","본관 외경","in","PQRS"], ["tm","본관 T","in","PR"], ["od","지관 외경","in","PQMRS"], ["tb","지관 T","in","PQMRS"],
+    ["Lq","지관 길이","in","QS"], ["Cq","중심 거리","in","S"], ["odm2","본관 외경","in","S"], ["Lm","짧은 쪽 길이","in","M"],
+    ["qH","감는 본 H","out","QS"], ["qH2","감는 본 H","out","S"], ["qC","본관 중심~끝","out","Q"], ["mC","이음 단차","out","M"], ["mT","두께","out","M"],
+    ["pTop","위 본 H","out","PR"], ["pBot","아래 본 H","out","P"], ["pLi","짧은 쪽","out","PR"],
+    ["rY","꺾임 높이","out","R"], ["rVL","세로관 긴 쪽","out","R"], ["rVS","세로관 짧은 쪽","out","R"], ["rC","꺾임 단차","out","R"], ["rT","두께","out","R"], ["pLc","중심선","out",""],
+    ["b1","앵글사이즈","in","A"], ["t1","T","in","A"], ["b","앵글사이즈","in","ABCDEF"], ["t2","T","in","ABCDEF"],
+    ["Le","길이","in","E"],
+    ["g0","","out","AB"], ["ga","","out","A"], ["na","","out","AB"], ["da","","out","AB"], ["g1","","out","AB"],
+    ["c18","","out","CE"], ["c2","","out","CE"], ["Lt","전체 길이","out","D"], ["e44","","out","E"], ["e6","","out","E"], ["f19","","out","F"],
+    ["L","값","fin","ABDPQMRS"]
+  ];
+  var EL = {};
+  BOXES.forEach(function(bx){
+    var d = document.createElement("div"); d.className = "box";
+    var cap = bx[1] ? '<span class="cap'+(bx[2]==="fin"?' final':'')+'">'+bx[1]+'</span>' : '';
+    if (bx[2] === "in") {
+      var spec = ["b","b1","t1","t2","od","odm","odm2","tm","tb"].indexOf(bx[0]) >= 0 ? ' class="spec"' : '';
+      d.innerHTML = cap + '<input id="in_'+bx[0]+'"'+spec+' type="number" inputmode="decimal" step="any" aria-label="'+bx[1]+'">';
+      var inp = d.querySelector("input");
+      // click a box → it empties so a new number can be typed right away; leaving it empty puts the old value back
+      inp.addEventListener("focus", function(){ inp.dataset.prev = inp.value; inp.dataset.typed = ""; inp.value = ""; });
+      inp.addEventListener("blur", function(){ if (!inp.dataset.typed && inp.value === "") inp.value = inp.dataset.prev || ""; });
+      inp.addEventListener("input", function(){
+        inp.dataset.typed = "1";
+        var S = ST[TYPE];
+        S[bx[0]] = inp.value;
+        if (TYPE === "D") {
+          if (bx[0] === "T" || bx[0] === "T2") S.lastAng = bx[0];
+          var kk = bx[0] === "T2" ? "T" : bx[0];
+          if (kk === "H" || kk === "B" || kk === "T")
+            S.ord = (S.ord || []).filter(function(x){ return x !== kk; }).concat([kk]).slice(-2);
+        }
+        else if (bx[0] === "H" || bx[0] === "B" || bx[0] === "T" || bx[0] === "T2") {
+          if (bx[0] === "T" || bx[0] === "T2") S.last = bx[0];
+          var k = (bx[0] === "T2") ? "T" : bx[0];
+          S.ord = (S.ord || []).filter(function(x){ return x !== k; }).concat([k]).slice(-2);
+        }
+        if (bx[0] === "Lq" || bx[0] === "Cq") S.lastL = bx[0];
+        // T자 양쪽 본관: 왼쪽 본관 외경을 넣으면 오른쪽도 같이 바뀜 (오른쪽은 따로 고칠 수 있음)
+        if (TYPE === "S" && bx[0] === "odm") { S.odm2 = inp.value; $("in_odm2").value = inp.value; }
+        save(); calc();
+      });
+    } else {
+      d.innerHTML = cap + '<output id="out_'+bx[0]+'"'+(bx[2]==="fin"?' class="final"':'')+'></output>';
+    }
+    $("board").appendChild(d); EL[bx[0]] = d;
+  });
+
+  function setType(t){
+    TYPE = t; save();
+    ["A","B","C","D","E","F"].forEach(function(k){ if (!$("tab"+k)) return; $("tab"+k).setAttribute("aria-selected", t === k); $("note"+k).hidden = t !== k; });
+    $("board").style.maxWidth = (t === "C" || t === "D") ? "720px" : "";
+    $("ttl").innerHTML = (t === "P" ? "이경 가지관 계산기" : t === "Q" ? "T자 가지관 계산기" : t === "M" ? "파이프 꺾음 계산기" : t === "R" ? "가지관+꺾음 계산기" : t === "S" ? "T자 양쪽 본관 계산기" : t + "타입 앵글 계산기") + '<span class="ver">v1.6</span>';
+    EL.od.querySelector(".cap").textContent = t === "M" ? "파이프 외경" : "지관 외경";
+    EL.tb.querySelector(".cap").textContent = t === "M" ? "파이프 T" : "지관 T";
+    EL.H.querySelector(".cap").textContent = (t === "P" || t === "R") ? "높이 (중심 교점)" : "세로값 거리";
+    EL.B.querySelector(".cap").textContent = (t === "P" || t === "R") ? "가로값 (중심~중심)" : "가로값 거리";
+    $("sub").textContent = {
+      A: "① 세로 앵글 + ② 빗대 앵글 (② 가 ① 두께면 안쪽에 붙는 타입).",
+      B: "① 세로 앵글 + ② 빗대 앵글 (② 가 ① 바깥면에 바로 붙는 타입).",
+      C: "① 앵글 + ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입 (이음 단차만).",
+      D: "① 앵글 + ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입 (길이까지 계산).",
+      E: "맞대기(마이터) 이음 + ② 아래 끝을 ① 과 나란히(수평) 자르는 타입.",
+      F: "세로 ① 앵글 아래에 ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입.",
+      P: "본관(세로 파이프)에 지관(빗대 파이프)이 붙는 타입. 위는 본관에 맞춘 안장 모양, 아래는 바닥에 맞춘 경사 절단.",
+      Q: "세로 본관 옆에 지관이 직각(90°)으로 붙는 타입. 지관 끝은 본관에 맞춘 안장 모양.",
+      M: "파이프 두 조각을 각도대로 맞대기(마이터) 이음하는 타입 (파이프 엘보).",
+      R: "이경 가지관과 같고, 지관 아래 끝이 바닥 대신 세로관에 꺾여(마이터) 붙는 타입.",
+      S: "T자 가지관과 같고, 지관 양쪽 끝이 본관 두 개에 안장 모양으로 붙는 타입."
+    }[t] + " 흰 입력 칸에 값을 넣으면 초록 계산 칸과 노란 값 칸이 나옵니다.";
+    BOXES.forEach(function(bx){
+      EL[bx[0]].hidden = bx[3].indexOf(t) < 0;
+      if (bx[2] === "in") { var e = $("in_"+bx[0]); e.value = ST[t][bx[0]] || ""; e.placeholder = ""; }
+    });
+    calc();
+  }
+  $("tabA").addEventListener("click", function(){ setType("A"); });
+  $("tabB").addEventListener("click", function(){ setType("B"); });
+  $("tabC").addEventListener("click", function(){ setType("C"); });
+  $("tabD").addEventListener("click", function(){ setType("D"); });
+  $("tabE").addEventListener("click", function(){ setType("E"); });
+  $("tabF").addEventListener("click", function(){ setType("F"); });
+  
+  
+  
+  
+  
+
+  // angle from the two angle boxes (위 = from the vertical, 아래 = from the floor)
+  function readAngle(S){
+    var T;
+    if (S.last === "T2") { var T2 = num(S.T2); T = T2 === null ? null : 90 - T2; } else T = num(S.T);
+    return T;
+  }
+  function showAngle(S, T){
+    var typed = S.last === "T2" ? "T2" : "T", other = typed === "T" ? "T2" : "T";
+    $("in_"+typed).placeholder = "";
+    clr($("in_"+other)); $("in_"+other).placeholder = (T > 0 && T < 90) ? fd(other === "T" ? T : 90 - T) : "";
+  }
+
+  // Shared brace geometry (mm, y up). x0 = face the brace stops on; heel U runs from (x0, Y) down to the floor point (X, 0)
+  //  thickness line W = U offset t2 inward; inner line I = U offset b2 inward, starting at the line x = xs
+  function geom(x0, Y, th, t2, xs, b2){
+    var s = Math.sin(th), co = Math.cos(th), tn = Math.tan(th);
+    var g = {s:s, co:co, tn:tn, Y:Y};
+    var X = x0 + Y*tn; g.X = X;
+    g.Ut = [x0, Y];              g.Uf = [X, 0];
+    g.Wt = [x0, Y - t2/s];       g.Wf = [X - t2/co, 0];
+    g.UX = [xs, Y - (xs - x0)/tn];
+    g.It = [xs, g.UX[1] - b2/s];
+    g.If = [X - b2/co, 0];
+    g.L  = g.Wt[1]/co;
+    var d = [s, -co], pr = function(p){ return (p[0]-g.Wt[0])*d[0] + (p[1]-g.Wt[1])*d[1]; };
+    g.pUt = pr(g.Ut); g.pUX = pr(g.UX); g.pIt = pr(g.It); g.pIf = pr(g.If); g.pUf = pr(g.Uf);
+    return g;
+  }
+
+  var REC = null;
+  // fixed drawings: the picture always shows the example shape; only the numbers in the boxes change
+  var R45 = rad(45), K45 = Math.tan(R45/2);
+  var FIX = {
+    A: function(){ return {type:"A", H:489, g:geom(6, 489, rad(30), 6, 50, 50), b1:50, t1:6, b:50, t2:6}; },
+    B: function(){ return {type:"B", H:413, g:geom(0, 413, rad(30), 6, 0, 50), b:50, t2:6}; },
+    C: {L1:210, H:230*Math.sin(R45), B:230*Math.cos(R45), dl:R45, k:K45, b:50, t:6},
+    D: {full:true, L1:442, H:302, B:302, dl:R45, k:K45, b:50, t:6},
+    E: {dl:R45, k:K45, ct:1, b:50, t:6, L:424},
+    F: {P:138.56, b:50, t:6},
+    P: {H:700, th:rad(30), R:44.55, r:44.55}
+  };
+  function calc(){ return TYPE === "A" ? calcA() : TYPE === "B" ? calcB() : TYPE === "C" ? calcC() : TYPE === "D" ? calcD() : TYPE === "E" ? calcE() : TYPE === "F" ? calcF() : TYPE === "Q" ? calcQ() : TYPE === "M" ? calcM() : TYPE === "R" ? calcR() : TYPE === "S" ? calcS() : calcP(); }
+
+  // P: pipe brace on the face of ① (like angle B). 세로/가로 measured to the pipe's upper line.
+  // P: 이경 가지관 — 본관(세로 파이프) + 지관(빗대 파이프). 엑셀 "PIPE 전개도 좌표식" 지관 전개와 같은 식.
+  //   높이 = 바닥 ~ 두 중심선 교점, 가로 = 본관 중심 ~ 지관 중심선 바닥점, 각도 = 지관과 본관(세로) 사이
+  function p2p(Hc, ang, ODm, ODb, Tb){
+    var a = rad(ang), R = ODm/2, r = ODb/2, ri = ODb/2 - Tb;
+    // 위크형 견본 전개도: 긴 쪽 180도 한 점만 안쪽 면(내경) — 80A 30도 → 위 147, 아래 49
+    var rho180 = function(d){ return d >= 180 ? ri : r; };
+    var cTop = function(d){ return (r - rho180(d)*Math.cos(rad(d))) * Math.tan(rad(90 - ang)); };
+    var F = function(d){ var rho = d <= 60 ? r : ri, x = rho*Math.sin(rad(d)); return (R - Math.sqrt(Math.max(R*R - x*x, 0)))/Math.sin(a); };
+    var zBot = function(d){ return (r - rho180(d)*Math.cos(rad(d))) * Math.tan(a); };
+    // 길이는 지관 안쪽 면(두께 뺀 선) 끝 기준 (위크 스타일 견본: 80A/80A, 700, 30도 → 812)
+    var sLo = (R + ri*Math.cos(a))/Math.sin(a), fLo = (Hc - ri*Math.sin(a))/Math.cos(a);
+    var sUp = (R - ri*Math.cos(a))/Math.sin(a), fUp = (Hc + ri*Math.sin(a))/Math.cos(a);
+    return {Ht: cTop(180) + F(180), Hb: zBot(180), Llong: fUp - sUp, Lshort: fLo - sLo};
+  }
+  function calcP(){
+    var S = ST.P, r3 = resolve3(S, ["H","T"]), H = r3.H, B = r3.B, T = r3.T;
+    var odm = num(S.odm), tm = num(S.tm), od = num(S.od), tb = num(S.tb);
+    var miss = [];
+    if (!(T > 0 && T < 90) || !(H > 0) || !(B > 0)) miss.push("높이·가로값·각도 중 두 개");
+    if (!(odm > 0)) miss.push("본관 외경"); if (tm === null || tm < 0) miss.push("본관 T");
+    if (!(od > 0)) miss.push("지관 외경"); if (tb === null || tb < 0) miss.push("지관 T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (od > odm) return fail("지관 외경이 본관 외경보다 클 수 없습니다.");
+    var k = p2p(H, T, odm, od, tb);
+    if (!(k.Lshort > 0)) return fail("높이에 비해 파이프가 너무 굵습니다.");
+    var v = {L:k.Llong, pLi:k.Lshort, pTop:k.Ht, pBot:k.Hb};
+    REC = Object.assign({type:"P", H:H, B:B, T:T, odm:odm, tm:tm, od:od, tb:tb}, v);
+    ["L","pLi","pTop","pBot"].forEach(function(key){ $("out_"+key).textContent = fd(v[key]); });
+    results([
+      ["값 (지관 긴 쪽, 안쪽 면 기준)", v.L, true], ["지관 짧은 쪽 (안쪽 면 기준)", v.pLi],
+      ["위 감는 본 높이 H (본관 쪽)", v.pTop], ["아래 감는 본 높이 H (바닥 쪽)", v.pBot]
+    ], [
+      ["높이 / 가로값 (중심 기준)", f1(H)+" / "+f1(B)],
+      ["각도 (본관과 / 바닥과)", f1(T)+"° / "+f1(90-T)+"°"],
+      ["본관 / 지관", f1(odm)+"×"+tm+"T / "+f1(od)+"×"+tb+"T"],
+      ["감는 본 둘레 (지관 외경)", f1(Math.PI*od)+" mm"]
+    ]);
+    drawP(FIX.P);
+  }
+
+  function drawP(o){
+    var th = o.th, s = Math.sin(th), co = Math.cos(th), Rm = o.R, r = o.r, Y = o.H, X = Y*Math.tan(th);
+    var topY = Y*1.15, leftX = -Rm;
+    var sc = 440/topY, padL = 110, padT = 80, padR = 150, padB = 90;
+    var w = (X - leftX)*sc + padL + padR, h = topY*sc + padT + padB;
+    var P = function(p){ return [padL + (p[0] - leftX)*sc, padT + (topY - p[1])*sc]; };
+    var WHITE = "#e9edf0", s2 = "";
+    var add = function(p, v, m){ return [p[0] + v[0]*m, p[1] + v[1]*m]; };
+    var ln = function(p, q, wd, dash){ s2 += '<line x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"'+(dash?' stroke-dasharray="14 4 3 4"':'')+'/>'; };
+    var arrow = function(tip, dir){
+      var L = 13, W = 3.6, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      s2 += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    var dim = function(p1, p2, off){
+      var dx = p2[0]-p1[0], dy = p2[1]-p1[1], len = Math.hypot(dx, dy);
+      var uu = [dx/len, dy/len], nn = [-uu[1], uu[0]], sg = off < 0 ? -1 : 1;
+      var a1 = add(p1, nn, off), a2 = add(p2, nn, off);
+      ln(add(p1, nn, sg*3), add(p1, nn, off + sg*7), 1); ln(add(p2, nn, sg*3), add(p2, nn, off + sg*7), 1);
+      ln(a1, a2, 1); arrow(a1, [-uu[0], -uu[1]]); arrow(a2, uu);
+      return [(a1[0]+a2[0])/2, (a1[1]+a2[1])/2];
+    };
+    var arcDim = function(c, a0, a1, r){
+      var p0 = [c[0] + r*Math.cos(a0), c[1] + r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] + r*Math.sin(a1)];
+      var sweep = a1 > a0 ? 1 : 0;
+      s2 += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 '+sweep+' '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+      var sg = a1 > a0 ? 1 : -1;
+      arrow(p0, [ sg*Math.sin(a0), -sg*Math.cos(a0)]); arrow(p1, [-sg*Math.sin(a1),  sg*Math.cos(a1)]);
+    };
+    var place = function(key, p, dx, dy){ var e = EL[key]; e.style.left = ((p[0]+(dx||0))/w*100)+"%"; e.style.top = ((p[1]+(dy||0))/h*100)+"%"; };
+
+    s2 += '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>';
+    s2 += '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+
+    // 본관 (세로 파이프) + 중심선, 바닥
+    ln(P([-Rm,0]), P([-Rm,topY])); ln(P([Rm,0]), P([Rm,topY])); ln(P([-Rm,topY]), P([Rm,topY]));
+    ln(P([0,0]), P([0,topY]), 1, true);
+    ln(P([-Rm,0]), P([X + r*1.3,0]));
+    // 지관: 중심선 교점 C=(0,Y), 축 방향 d, 위쪽 법선 n. 모선은 본관 면(x=Rm)에서 바닥까지
+    var d = [s, -co], n = [co, s];
+    var gen = function(off){
+      var t0 = (Rm - off*co)/s, t1 = (Y + off*s)/co;
+      return [[off*n[0] + t0*d[0], Y + off*n[1] + t0*d[1]], [off*n[0] + t1*d[0], 0]];
+    };
+    var up = gen(r), lo = gen(-r);
+    ln(P(up[0]), P(up[1])); ln(P(lo[0]), P(lo[1]));
+    ln(P([0, Y]), P([X, 0]), 1, true);
+    var Ut = up[0], Uf = up[1], It = lo[0], If = lo[1];
+
+    // dimensions: 높이 (바닥~중심선 교점), 가로 (본관 중심~지관 중심 바닥점)
+    var hx = P([leftX,0])[0] - 46;
+    ln([P([0,0])[0] - 4, P([0,0])[1]], [hx - 8, P([0,0])[1]], 1);
+    ln([P([0,Y])[0], P([0,Y])[1]], [hx - 8, P([0,Y])[1]], 1);
+    ln([hx, P([0,0])[1]], [hx, P([0,Y])[1]], 1); arrow([hx, P([0,Y])[1]], [0,-1]); arrow([hx, P([0,0])[1]], [0,1]);
+    var by = P([0,0])[1] + 44;
+    ln([P([0,0])[0], P([0,0])[1] + 4], [P([0,0])[0], by + 8], 1);
+    ln([P([X,0])[0], P([X,0])[1] + 4], [P([X,0])[0], by + 8], 1);
+    ln([P([0,0])[0], by], [P([X,0])[0], by], 1); arrow([P([0,0])[0], by], [-1,0]); arrow([P([X,0])[0], by], [1,0]);
+    var mLong = dim(P(Ut), P(Uf), -70);                               // 지관 긴 쪽 (바깥)
+    var mShort = dim(P(It), P(If), 34);                               // 지관 짧은 쪽 (안쪽)
+    // angle arcs: 위 = 중심선 교점(본관 축과 지관 축 사이), 아래 = 지관 아래 선의 바닥점
+    var cTop = P([0, Y]), rTop = Math.min(130, Y*sc*0.36), aDown = Math.PI/2, aBrace = Math.atan2(co, s);
+    arcDim(cTop, aDown, aBrace, rTop);
+    var cBot = P(If), rBot = Math.min(95, Y*sc*0.22), aLeft = Math.PI, aUp = Math.atan2(-co, -s);
+    arcDim(cBot, aLeft, aUp + 2*Math.PI, rBot);
+
+    var svg = $("svg");
+    svg.setAttribute("viewBox", "0 0 "+w.toFixed(0)+" "+h.toFixed(0));
+    svg.innerHTML = s2;
+
+    place("H", [hx, P([0, Y*0.5])[1]]);
+    place("B", [(P([0,0])[0] + P([X,0])[0])/2, by]);
+    var mTop = (aDown + aBrace)/2;
+    place("T", [cTop[0] + Math.cos(mTop)*rTop*0.75, cTop[1] + Math.sin(mTop)*rTop*0.75]);
+    place("T2", [cBot[0] - 50, cBot[1] - 20]);
+    place("L", mLong); place("pLi", mShort, -36, 30);
+    place("odm", P([0, Y*1.07]), -72, 0); place("tm", P([0, Y*0.93]), -72, 0);
+    place("od", P([X*0.62, Y*0.78]), 0, 0); place("tb", P([X*0.62, Y*0.78]), 0, 46);
+    place("pTop", P(Ut), 60, -14); place("pBot", P(Uf), 34, 24);
+  }
+
+  // 고정 그림용 도구 (mm 좌표, y 위쪽) — Q/M 에서 같이 씀
+  function kit(minX, maxX, minY, maxY, sc, pad){
+    var o = {}, WHITE = "#e9edf0";
+    o.w = (maxX - minX)*sc + pad[0] + pad[2]; o.h = (maxY - minY)*sc + pad[1] + pad[3];
+    o.P = function(p){ return [pad[0] + (p[0] - minX)*sc, pad[1] + (maxY - p[1])*sc]; };
+    o.s = '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>'
+        + '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+    o.ls = function(a, c, wd, dash){ o.s += '<line x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+c[0].toFixed(1)+'" y2="'+c[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"'+(dash?' stroke-dasharray="14 4 3 4"':'')+'/>'; };
+    o.ln = function(p, q, wd, dash){ o.ls(o.P(p), o.P(q), wd, dash); };
+    o.poly = function(pts, wd){ o.s += '<polyline points="'+pts.map(function(p){ var a = o.P(p); return a[0].toFixed(1)+','+a[1].toFixed(1); }).join(" ")+'" fill="none" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"/>'; };
+    o.arrow = function(tip, dir){
+      var L = 13, W = 3.6, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      o.s += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    // 치수: 모델 점 p1, p2, 화면 px 만큼 왼쪽 법선 방향으로 띄움 (음수 = 반대쪽)
+    o.dim = function(p1, p2, off){
+      var a = o.P(p1), c = o.P(p2), dx = c[0]-a[0], dy = c[1]-a[1], len = Math.hypot(dx, dy);
+      var u = [dx/len, dy/len], n = [u[1], -u[0]], sg = off < 0 ? -1 : 1;
+      var m = function(p, k){ return [p[0] + n[0]*k, p[1] + n[1]*k]; };
+      o.ls(m(a, sg*3), m(a, off + sg*7), 1); o.ls(m(c, sg*3), m(c, off + sg*7), 1);
+      var a1 = m(a, off), c1 = m(c, off);
+      o.ls(a1, c1, 1); o.arrow(a1, [-u[0], -u[1]]); o.arrow(c1, u);
+      return [(a1[0]+c1[0])/2, (a1[1]+c1[1])/2];
+    };
+    o.arc = function(c, r, a0, a1){
+      var p0 = [c[0] + r*Math.cos(a0), c[1] - r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] - r*Math.sin(a1)];
+      var big = Math.abs(a1 - a0) > Math.PI ? 1 : 0, sw = a1 > a0 ? 0 : 1;
+      o.s += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r+' '+r+' 0 '+big+' '+sw+' '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+      var sg = a1 > a0 ? 1 : -1;
+      o.arrow(p0, [ sg*Math.sin(a0),  sg*Math.cos(a0)]); o.arrow(p1, [-sg*Math.sin(a1), -sg*Math.cos(a1)]);
+    };
+    o.place = function(key, p, dx, dy){ var e = EL[key]; e.style.left = ((p[0]+(dx||0))/o.w*100)+"%"; e.style.top = ((p[1]+(dy||0))/o.h*100)+"%"; };
+    o.done = function(){ var svg = $("svg"); svg.setAttribute("viewBox", "0 0 "+o.w.toFixed(0)+" "+o.h.toFixed(0)); svg.innerHTML = o.s; };
+    return o;
+  }
+
+  // Q: T자 가지관 — 본관(세로)에 지관이 90° 로 붙음. 엑셀 "PIPE 전개도 좌표식" 지관 식(α=90°)
+  // 본 높이 표: 한 줄에 4개씩 (칸 밖으로 넘치지 않게)
+  function hRows(angs, fn){
+    var out = [];
+    for (var i = 0; i < angs.length; i += 4) {
+      var a = angs.slice(i, i + 4);
+      out.push(["본 높이 " + (a.length > 1 ? a[0] + "°~" + a[a.length-1] + "°" : a[0] + "°"),a.map(function(d){ return fd(fn(d)); }).join(" · ")]);
+    }
+    return out;
+  }
+  function teeH(R, r, ri, d){ var rho = d <= 60 ? r : ri, x = rho*Math.sin(rad(d)); return R - Math.sqrt(Math.max(R*R - x*x, 0)); }
+  function calcQ(){
+    var S = ST.Q, odm = num(S.odm), od = num(S.od), tb = num(S.tb), L = num(S.Lq);
+    var miss = [];
+    if (!(odm > 0)) miss.push("본관 외경");
+    if (!(od > 0)) miss.push("지관 외경"); if (tb === null || tb < 0) miss.push("지관 T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (od > odm) return fail("지관 외경이 본관 외경보다 클 수 없습니다.");
+    if (!(tb < od/2)) return fail("지관 T가 너무 큽니다.");
+    var R = odm/2, r = od/2, ri = r - tb, H = teeH(R, r, ri, 90), hasL = L > 0;
+    var v = {qH:H, L:hasL ? L + H : null, qC:hasL ? L + R : null};
+    REC = Object.assign({type:"Q", odm:odm, od:od, tb:tb, Lq:hasL ? L : null}, v);
+    $("out_qH").textContent = fd(H);
+    $("out_L").textContent = hasL ? fd(v.L) : ""; $("out_qC").textContent = hasL ? fd(v.qC) : "";
+    results((hasL ? [["값 (긴 쪽 = 지관 길이 + 본 H)", v.L, true], ["짧은 쪽 (지관 길이, 입력)", L], ["본관 중심 ~ 지관 끝", v.qC]] : [])
+      .concat([["감는 본 높이 H", H, !hasL]]), [
+      ["본관 / 지관", f1(odm)+" / "+f1(od)+"×"+tb+"T"],
+      ["감는 본 둘레 (지관 외경)", f1(Math.PI*od)+" mm (24등분)"]
+      , ["본 높이 간격", "15° (둘레 24등분)"]
+    ].concat(hRows([0,15,30,45,60,75,90], function(d){ return teeH(R, r, ri, d); }), [
+      ["90~180° 는 거꾸로, 180~360° 는 같은 모양 반복", ""]
+    ]));
+    drawQ();
+  }
+  function drawQ(){
+    var R = 44.55, r = 30.25, ri = 26.45, tm = 4.2, L = 142.75, hm = 150;
+    var minX = -R - 30, maxX = R + L + 40, minY = -hm - 10, maxY = hm + 30;
+    var sc = Math.min(560/(maxX - minX), 520/(maxY - minY));
+    var K = kit(minX, maxX, minY, maxY, sc, [70, 90, 170, 110]), P = K.P;
+    // 본관
+    K.ln([-R,-hm], [-R,hm]); K.ln([R,-hm], [R,hm]); K.ln([-R,hm], [R,hm]); K.ln([-R,-hm], [R,-hm]);
+    K.ln([-R+tm,-hm], [-R+tm,hm], 0.8); K.ln([R-tm,-hm], [R-tm,hm], 0.8);
+    K.ln([0,-hm-12], [0,hm+12], 1, true);
+    // 지관 (위·아래 선은 본관 면에서 시작), 안쪽 선, 중심선, 끝
+    K.ln([R,r], [R+L,r]); K.ln([R,-r], [R+L,-r]); K.ln([R+L,-r], [R+L,r]);
+    var xs = Math.sqrt(R*R - ri*ri);
+    K.ln([R,ri], [R+L,ri], 0.8); K.ln([R,-ri], [R+L,-ri], 0.8);
+    K.ln([0,0], [R+L+15,0], 1, true);
+    // 본관 면에 닿는 안장 선 (옆에서 본 모양)
+    var cv = []; for (var i = 0; i <= 24; i++){ var ph = Math.PI*i/24; cv.push([Math.sqrt(R*R - Math.pow(r*Math.sin(ph), 2)), r*Math.cos(ph)]); }
+    K.poly(cv, 1.2);
+    // 치수
+    var mOdm = K.dim([-R,hm], [R,hm], 30);
+    var mL = K.dim([R,r], [R+L,r], 30);
+    var mOd = K.dim([R+L,r], [R+L,-r], 30);
+    var mC = K.dim([0,-hm], [R+L,-hm], -46);
+    K.done();
+    K.place("odm", mOdm, 0, -20);
+    K.place("Lq", mL, 0, -20);
+    K.place("od", mOd, 62, -32); K.place("tb", mOd, 62, 36);
+    K.place("qC", mC, 0, 22);
+    K.place("qH", P([xs, -r*0.55]), -44, 0);
+    K.place("L", P([R + L*0.55, 0]), 0, 0);
+  }
+
+  // M: 파이프 꺾음 (마이터 엘보). 이음 단차 = 외경 × tan(꺾인 각/2)
+  function calcM(){
+    var S = ST.M, P = num(S.T), od = num(S.od), tb = num(S.tb), Ls = num(S.Lm);
+    $("in_T").placeholder = "";
+    var miss = [];
+    if (!(P > 90 && P < 180)) miss.push("각도 (90~180 사이)");
+    if (!(od > 0)) miss.push("파이프 외경");
+    if (tb === null || tb < 0) miss.push("파이프 T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (!(tb < od/2)) return fail("파이프 T가 너무 큽니다.");
+    // 짧은 쪽은 바깥 면(외경), 긴 쪽은 안쪽 면(내경) 끝까지 — 연습.dwg 위크형 그림 (80A 135° → 35 + 두께 2)
+    var r = od/2, ri = r - tb, k = Math.tan(rad((180 - P)/2)), step = (r + ri)*k, tk = tb*k, hasL = Ls > 0;
+    var v = {mC:step, mT:tk, L:hasL ? Ls + step : null, mL:hasL ? Ls + r*k : null};
+    REC = Object.assign({type:"M", T:P, od:od, tb:tb, Lm:hasL ? Ls : null}, v);
+    $("out_mC").textContent = fd(step); $("out_mT").textContent = fd(tk); $("out_L").textContent = hasL ? fd(v.L) : "";
+    results((hasL ? [["값 (긴 쪽 = 짧은 쪽 + 단차, 안쪽 면)", v.L, true], ["짧은 쪽 (입력, 바깥 면)", Ls], ["중심선 길이 (교점 ~ 끝)", v.mL]] : [])
+      .concat([["이음 단차 (짧은 쪽 바깥 → 긴 쪽 안쪽)", step, !hasL], ["긴 쪽 두께 끝 (안쪽 → 바깥 모서리)", tk]]), [
+      ["각도 (사이각 / 꺾임)", (Math.round(P*100)/100)+"° / "+(Math.round((180-P)*100)/100)+"°"],
+      ["이음 절단 (양쪽 모두)", (Math.round((180-P)/2*100)/100)+"° 경사"],
+      ["감는 본 둘레 (외경)", f1(Math.PI*od)+" mm (24등분)"], ["본 높이 재는 곳", "짧은 쪽 끝 = 0°"]
+    ].concat(hRows([0,15,30,45,60,75,90,105,120,135,150,165,180], function(d){ var rho = d >= 180 ? ri : r; return (r - rho*Math.cos(rad(d)))*k; })));
+    drawM();
+  }
+  function drawM(){
+    var od = 89.1, r = od/2, ri = r - 4.2, P = 135, dl = rad(180 - P), k = Math.tan(dl/2), Ls = 100;
+    var top = r*k + Ls, Lc = Ls + r*k;
+    var d = [Math.sin(dl), -Math.cos(dl)], nin = [Math.cos(dl), Math.sin(dl)];
+    var at = function(q, t){ return [nin[0]*q + d[0]*t, nin[1]*q + d[1]*t]; };
+    var ends = [at(r, Lc), at(-r, Lc)];
+    var minX = -r - 20, maxX = Math.max(ends[0][0], ends[1][0]) + 20, minY = Math.min(ends[0][1], ends[1][1]) - 20, maxY = top + 20;
+    var sc = Math.min(520/(maxX - minX), 520/(maxY - minY));
+    var K = kit(minX, maxX, minY, maxY, sc, [120, 90, 150, 110]), Pp = K.P;
+    // ① 세로 조각
+    K.ln([r, r*k], [r, top]); K.ln([-r, -r*k], [-r, top]); K.ln([-r, top], [r, top]);
+    K.ln([ri, ri*k], [ri, top], 0.8); K.ln([-ri, -ri*k], [-ri, top], 0.8);
+    K.ln([0, 0], [0, top + 14], 1, true);
+    // 이음선
+    K.ln([-r, -r*k], [r, r*k]);
+    // ② 빗대 조각
+    K.ln([r, r*k], ends[0]); K.ln([-r, -r*k], ends[1]); K.ln(ends[0], ends[1]);
+    K.ln([ri, ri*k], at(ri, Lc), 0.8); K.ln([-ri, -ri*k], at(-ri, Lc), 0.8);
+    K.ln([0, 0], at(0, Lc + 14), 1, true);
+    // 긴 쪽 안쪽 면 끝 표시 (두께 끝 짧은 선 2개)
+    var hi = [-ri, -ri*k];
+    K.ln(hi, [-r, -ri*k], 1); K.ln(hi, at(-r, -ri*k), 1);
+    // 치수
+    var mOd = K.dim([-r, top], [r, top], 30);
+    var mS = K.dim([r, top], [r, r*k], 34);
+    var mLg = K.dim(at(-r, -ri*k), ends[1], -40);
+    var xs = Pp([-r, 0])[0] - 70, xt = xs + 34, ya = Pp([r, r*k])[1], yb = Pp(hi)[1], yc = Pp([-r, -r*k])[1];
+    K.ls([Pp([r, r*k])[0] - 4, ya], [xs - 8, ya], 1); K.ls([Pp(hi)[0] - 4, yb], [xs - 8, yb], 1); K.ls([Pp([-r, -r*k])[0] - 4, yc], [xt - 8, yc], 1);
+    K.ls([xs, ya - 22], [xs, yb + 22], 1); K.arrow([xs, ya], [0, 1]); K.arrow([xs, yb], [0, -1]);
+    K.ls([xt, yb - 22], [xt, yc + 22], 1); K.arrow([xt, yb], [0, 1]); K.arrow([xt, yc], [0, -1]);
+    var c0 = Pp([0, 0]), ra = r*sc*1.9;
+    K.arc(c0, ra, Math.PI/2, Math.atan2(d[1], d[0]));
+    K.done();
+    K.place("od", mOd, 0, -20);
+    K.place("Lm", mS, 62, 0);
+    K.place("L", mLg, -46, 30);
+    K.place("mC", [xs, (ya + yb)/2], -44, 0);
+    K.place("mT", [xt, yc], -8, 46);
+    K.place("tb", mOd, 118, -20);
+    var am = (Math.PI/2 + Math.atan2(d[1], d[0]))/2;
+    K.place("T", [c0[0] + (ra + 46)*Math.cos(am), c0[1] - (ra + 46)*Math.sin(am)]);
+  }
+
+  // R: 가지관+꺾음 — 이경 가지관(P)의 지관 아래 끝이 세로관에 마이터로 붙음 (연습.dwg 위크형 그림: 700, 257.15, 30° → 506 / 344, 세로관 265 / 243)
+  function geoR(H, B, ang, odm, od, tb){
+    var a = rad(ang), s = Math.sin(a), co = Math.cos(a), R = odm/2, r = od/2, ri = r - tb, k = Math.tan(a/2);
+    var Lb = B/s, Ye = H - B/Math.tan(a);                      // 지관 중심선 길이(교점~교점), 꺾임 중심 높이
+    var sUp = (R - ri*co)/s, sLo = (R + ri*co)/s;              // 본관 면에서 시작 (안쪽 면 선)
+    return {a:a, s:s, co:co, R:R, r:r, ri:ri, k:k, Lb:Lb, Ye:Ye,
+      // 짧은 쪽이 딱 .5 일 때는 내림 (견본 344.5 → 344, 위크형 지시 2026-10-09)
+      Llong: Lb + ri*k - sUp, Lshort: Lb - ri*k - sLo - 1e-6,
+      VL: Ye + ri*k, VS: Ye - r*k, step: (r + ri)*k, tk: tb*k};
+  }
+  function calcR(){
+    var S = ST.R, H = num(S.H), B = num(S.B), T = num(S.T);
+    var odm = num(S.odm), tm = num(S.tm), od = num(S.od), tb = num(S.tb);
+    var miss = [];
+    if (!(H > 0)) miss.push("높이"); if (!(B > 0)) miss.push("가로값"); if (!(T > 0 && T < 90)) miss.push("각도 (0~90)");
+    if (!(odm > 0)) miss.push("본관 외경"); if (tm === null || tm < 0) miss.push("본관 T");
+    if (!(od > 0)) miss.push("지관 외경"); if (tb === null || tb < 0) miss.push("지관 T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (od > odm) return fail("지관 외경이 본관 외경보다 클 수 없습니다.");
+    if (!(tb < od/2)) return fail("지관 T가 너무 큽니다.");
+    var g = geoR(H, B, T, odm, od, tb);
+    if (!(g.Lshort > 0)) return fail("가로값에 비해 파이프가 너무 굵습니다.");
+    if (!(g.VS > 0)) return fail("꺾임 높이가 바닥보다 낮습니다. 높이·가로값·각도를 확인하세요.");
+    var Ht = p2p(H, T, odm, od, tb).Ht;
+    var v = {L:g.Llong, pLi:g.Lshort, pTop:Ht, rY:g.Ye, rVL:g.VL, rVS:g.VS, rC:g.step, rT:g.tk};
+    REC = Object.assign({type:"R", H:H, B:B, T:T, odm:odm, tm:tm, od:od, tb:tb}, v);
+    ["L","pLi","pTop","rY","rVL","rVS","rC","rT"].forEach(function(key){ $("out_"+key).textContent = fd(v[key]); });
+    var r = g.r, ri = g.ri, k = g.k;
+    results([
+      ["값 (지관 긴 쪽, 안쪽 면 기준)", v.L, true], ["지관 짧은 쪽 (안쪽 면 기준)", v.pLi],
+      ["세로관 긴 쪽 (바닥 ~ 안쪽 면 끝)", v.rVL], ["세로관 짧은 쪽 (바닥 ~ 바깥 면 끝)", v.rVS],
+      ["위 감는 본 높이 H (본관 쪽)", v.pTop], ["꺾임 단차 (지관·세로관 같음)", v.rC], ["꺾임 두께 끝", g.tk],
+      ["꺾임 높이 (바닥 ~ 중심선 교점)", v.rY]
+    ], [
+      ["높이 / 가로값 (중심 기준)", f1(H)+" / "+f1(B)],
+      ["각도 (본관과) / 꺾임 이음 절단", f1(T)+"° / "+(Math.round(T/2*100)/100)+"° 경사"],
+      ["본관 / 지관", f1(odm)+"×"+tm+"T / "+f1(od)+"×"+tb+"T"],
+      ["감는 본 둘레 (지관 외경)", f1(Math.PI*od)+" mm (24등분)"], ["꺾임 본 높이 재는 곳", "짧은 쪽 끝 = 0°"]
+    ].concat(hRows([0,15,30,45,60,75,90,105,120,135,150,165,180], function(d){ var rho = d >= 180 ? ri : r; return (r - rho*Math.cos(rad(d)))*k; })));
+    drawR();
+  }
+  function drawR(){
+    var H = 700, B = 257.15, T = 30, g = geoR(H, B, T, 89.1, 89.1, 4.2), Rm = g.R, r = g.r, ri = g.ri, k = g.k, s = g.s, co = g.co;
+    var topY = H*1.12, minX = -Rm - 10, maxX = B + r + 40;
+    var sc = Math.min(560/(maxX - minX), 470/topY);
+    var K = kit(minX, maxX, -10, topY, sc, [120, 80, 250, 100]), Pp = K.P;
+    var C = [0, H], d = [s, -co], n = [co, s];
+    var on = function(off, t){ return [C[0] + n[0]*off + d[0]*t, C[1] + n[1]*off + d[1]*t]; };
+    // 본관 + 바닥
+    K.ln([-Rm,0], [-Rm,topY]); K.ln([Rm,0], [Rm,topY]); K.ln([-Rm,topY], [Rm,topY]);
+    K.ln([0,0], [0,topY], 1, true);
+    K.ln([-Rm,0], [maxX - 10,0]);
+    // 지관: 본관 면 → 꺾임 이음선
+    var st = function(off){ return (Rm - off*co)/s; };
+    K.ln(on(r, st(r)), on(r, g.Lb + r*k)); K.ln(on(-r, st(-r)), on(-r, g.Lb - r*k));
+    K.ln(on(ri, st(ri)), on(ri, g.Lb + ri*k), 0.8); K.ln(on(-ri, st(-ri)), on(-ri, g.Lb - ri*k), 0.8);
+    K.ln(C, on(0, g.Lb), 1, true);
+    // 세로관 + 이음선
+    var Ye = g.Ye;
+    K.ln([B + r, Ye + r*k], [B + r, 0]); K.ln([B - r, Ye - r*k], [B - r, 0]);
+    K.ln([B + ri, Ye + ri*k], [B + ri, 0], 0.8); K.ln([B - ri, Ye - ri*k], [B - ri, 0], 0.8);
+    K.ln([B, Ye], [B, -8], 1, true);
+    K.ln([B - r, Ye - r*k], [B + r, Ye + r*k]);
+    // 바깥쪽 안쪽 면 끝 표시 (두께 끝)
+    var hi = [B + ri, Ye + ri*k];
+    K.ln(hi, [B + r, Ye + ri*k], 1); K.ln(hi, on(r, g.Lb + ri*k), 1);
+    // 치수: 높이, 가로, 지관 긴 쪽/짧은 쪽, 세로관 긴 쪽/짧은 쪽
+    var hx = Pp([-Rm, 0])[0] - 46;
+    K.ls([Pp([-Rm,0])[0] - 4, Pp([0,0])[1]], [hx - 8, Pp([0,0])[1]], 1); K.ls([Pp(C)[0], Pp(C)[1]], [hx - 8, Pp(C)[1]], 1);
+    K.ls([hx, Pp([0,0])[1]], [hx, Pp(C)[1]], 1); K.arrow([hx, Pp(C)[1]], [0,-1]); K.arrow([hx, Pp([0,0])[1]], [0,1]);
+    var mB = K.dim([0,0], [B,0], -40);
+    var mL = K.dim(on(ri, st(ri)), on(ri, g.Lb + ri*k), 40);
+    var mS = K.dim(on(-ri, st(-ri)), on(-ri, g.Lb - ri*k), -34);
+    var mVL = K.dim([B + r, 0], [B + r, Ye + ri*k], -70);
+    var mVS = K.dim([B - r, 0], [B - r, Ye - r*k], 30);
+    var mY = K.dim([B, 0], [B, Ye], -(r*sc + 112));                  // 꺾임 높이 (바닥 ~ 중심선 교점)
+    // 꺾임 단차 (짧은 쪽 바깥 끝 → 긴 쪽 안쪽 면 끝) + 두께 끝: 세로관 오른쪽 바로 옆 세로 치수
+    var xs = Pp([B + r, 0])[0] + 30, ya = Pp([B - r, Ye - r*k])[1], yb = Pp(hi)[1], yc = Pp([B + r, Ye + r*k])[1];
+    K.ls([Pp([B - r, 0])[0], ya], [xs + 8, ya], 1); K.ls([Pp(hi)[0] + 2, yb], [xs + 8, yb], 1);
+    K.ls([xs, ya + 16], [xs, yc - 16], 1); K.arrow([xs, ya], [0, 1]); K.arrow([xs, yb], [0, -1]);
+    // 지관 외경: 지관을 가로지르는 치수
+    var tO = g.Lb*0.5, mOd = K.dim(on(-r, tO), on(r, tO), 0.01);
+    var cT = Pp(C), rT = Math.min(120, H*sc*0.3);
+    K.arc(cT, rT, -Math.PI/2, Math.atan2(-co, s));
+    K.done();
+    K.place("H", [hx, Pp([0, H*0.5])[1]]);
+    K.place("B", mB, 0, 22);
+    var am = (-Math.PI/2 + Math.atan2(-co, s))/2;
+    K.place("T", [cT[0] + Math.cos(am)*rT*0.72, cT[1] - Math.sin(am)*rT*0.72]);
+    // 값 칸은 치수선 바로 옆 (치수선의 바깥쪽)
+    K.place("L", mL, 40, -24); K.place("pLi", mS, -40, 24);
+    K.place("rVL", [mVL[0], Pp([0, Ye*0.62])[1]], 46, 0); K.place("rVS", mVS, -46, 0);
+    K.place("rY", [mY[0], Pp([0, Ye*0.25])[1]], 46, 0);
+    K.place("rC", [xs, yc], 4, -60);
+    K.place("rT", [xs, yc], 92, -60);
+    K.place("pTop", Pp(on(r, st(r))), 40, -40);
+    K.place("odm", Pp([0, topY]), 0, -24); K.place("tm", Pp([0, topY]), -84, -24);
+    K.place("od", Pp(on(0, tO)), 0, 0); K.place("tb", Pp(on(0, g.Lb*0.68)), 0, 0);
+  }
+
+  // S: T자 양쪽 본관 — 본관 두 개 사이에 지관 90° (양쪽 안장). 연습.dwg: 중심 231.85 → 지관 142.75
+  function calcS(){
+    var S = ST.S, odm = num(S.odm), odm2 = num(S.odm2), od = num(S.od), tb = num(S.tb), Cq = num(S.Cq), Lq = num(S.Lq);
+    var miss = [];
+    if (!(odm > 0)) miss.push("왼쪽 본관 외경"); if (!(odm2 > 0)) miss.push("오른쪽 본관 외경");
+    if (!(od > 0)) miss.push("지관 외경"); if (tb === null || tb < 0) miss.push("지관 T");
+    var useC = S.lastL !== "Lq";
+    if (useC ? !(Cq > 0) : !(Lq > 0)) miss.push("중심 거리 또는 지관 길이");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (od > odm || od > odm2) return fail("지관 외경이 본관 외경보다 클 수 없습니다.");
+    if (!(tb < od/2)) return fail("지관 T가 너무 큽니다.");
+    var R1 = odm/2, R2 = odm2/2, r = od/2, ri = r - tb, H1 = teeH(R1, r, ri, 90), H2 = teeH(R2, r, ri, 90);
+    var L = useC ? Cq - R1 - R2 : Lq, C = useC ? Cq : Lq + R1 + R2;
+    if (!(L > 0)) return fail("중심 거리가 너무 짧습니다.");
+    var other = useC ? "Lq" : "Cq";
+    $("in_"+(useC ? "Cq" : "Lq")).placeholder = "";
+    clr($("in_"+other)); $("in_"+other).placeholder = fd(useC ? L : C);
+    var v = {qH:H1, qH2:H2, L:L + H1 + H2};
+    REC = Object.assign({type:"S", odm:odm, odm2:odm2, od:od, tb:tb, Cq:C, Lq:L}, v);
+    $("out_qH").textContent = fd(H1); $("out_qH2").textContent = fd(H2); $("out_L").textContent = fd(v.L);
+    var same = Math.abs(odm - odm2) < 1e-9;
+    results([
+      ["값 (긴 쪽 = 지관 길이 + 본 H 양쪽)", v.L, true], ["짧은 쪽 (지관 길이, 본관 면 ~ 면)", L],
+      ["본관 중심 ~ 중심", C]
+    ].concat(same ? [["감는 본 높이 H (양쪽 같음)", H1]] : [["감는 본 높이 H (왼쪽)", H1], ["감는 본 높이 H (오른쪽)", H2]]), [
+      ["본관 왼쪽 / 오른쪽 / 지관", f1(odm)+" / "+f1(odm2)+" / "+f1(od)+"×"+tb+"T"],
+      ["감는 본 둘레 (지관 외경)", f1(Math.PI*od)+" mm (24등분)"]
+      , ["본 높이 간격", "15° (둘레 24등분)"]
+    ].concat(hRows([0,15,30,45,60,75,90], function(d){ return teeH(R1, r, ri, d); }).map(function(x){ if (!same) x[0] = x[0].replace("본 높이", "왼쪽 본"); return x; }),
+      same ? [] : hRows([0,15,30,45,60,75,90], function(d){ return teeH(R2, r, ri, d); }).map(function(x){ x[0] = x[0].replace("본 높이", "오른쪽 본"); return x; }), [
+      [same ? "양쪽 끝 모두 같은 본" : "본관이 다르면 양쪽 본이 다릅니다", ""]
+    ]));
+    drawS();
+  }
+  function drawS(){
+    var R = 44.55, r = 30.25, ri = 26.45, tm = 4.2, Cd = 231.85, hm = 150;
+    var minX = -R - 30, maxX = Cd + R + 30, minY = -hm - 10, maxY = hm + 30;
+    var sc = Math.min(560/(maxX - minX), 520/(maxY - minY));
+    var K = kit(minX, maxX, minY, maxY, sc, [70, 90, 70, 110]), P = K.P;
+    [0, Cd].forEach(function(cx){
+      K.ln([cx-R,-hm], [cx-R,hm]); K.ln([cx+R,-hm], [cx+R,hm]); K.ln([cx-R,hm], [cx+R,hm]); K.ln([cx-R,-hm], [cx+R,-hm]);
+      K.ln([cx-R+tm,-hm], [cx-R+tm,hm], 0.8); K.ln([cx+R-tm,-hm], [cx+R-tm,hm], 0.8);
+      K.ln([cx,-hm-12], [cx,hm+12], 1, true);
+    });
+    K.ln([R,r], [Cd-R,r]); K.ln([R,-r], [Cd-R,-r]);
+    K.ln([R,ri], [Cd-R,ri], 0.8); K.ln([R,-ri], [Cd-R,-ri], 0.8);
+    K.ln([0,0], [Cd,0], 1, true);
+    var cv1 = [], cv2 = [];
+    for (var i = 0; i <= 24; i++){ var ph = Math.PI*i/24, x = Math.sqrt(R*R - Math.pow(r*Math.sin(ph), 2)); cv1.push([x, r*Math.cos(ph)]); cv2.push([Cd - x, r*Math.cos(ph)]); }
+    K.poly(cv1, 1.2); K.poly(cv2, 1.2);
+    var mOdm = K.dim([-R,hm], [R,hm], 30);
+    var mOdm2 = K.dim([Cd-R,hm], [Cd+R,hm], 30);
+    var mL = K.dim([R,r], [Cd-R,r], 30);
+    var mC = K.dim([0,-hm], [Cd,-hm], -46);
+    K.done();
+    K.place("odm", mOdm, 0, -20);
+    K.place("odm2", mOdm2, 0, -20);
+    K.place("Lq", mL, 0, -20);
+    K.place("Cq", mC, 0, 22);
+    K.place("L", P([Cd/2, 0]), 0, 0);
+    K.place("qH", P([0, -r - 40]), 0, 0);
+    K.place("qH2", P([Cd, -r - 40]), 0, 0);
+    K.place("od", P([Cd/2, -r]), -46, 46); K.place("tb", P([Cd/2, -r]), 46, 46);
+  }
+
+
+  // E: miter joint like C, ② bottom end cut parallel to ① (horizontal). 길이 = ② 두께선 길이 (input)
+  function calcE(){
+    var S = ST.E, P = num(S.T), b = num(S.b), t = num(S.t2), L = num(S.Le);
+    $("in_T").placeholder = "";
+    var miss = [];
+    if (!(P > 90 && P < 180)) miss.push("각도 (90~180 사이)");
+    if (!(b > 0)) miss.push("앵글사이즈");
+    if (t === null || t < 0) miss.push("T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (!(b > t)) return fail("앵글사이즈가 T보다 커야 합니다.");
+    var dl = rad(180 - P), k = Math.tan(dl/2), ct = 1/Math.tan(dl);
+    var v = {c18:(b - t)*k, c2:t*k, e44:(b - t)*ct, e6:t*ct};
+    var hasL = L > 0;
+    REC = Object.assign({type:"E", T:P, b:b, t2:t, Le:hasL ? L : null}, v);
+    ["c18","c2","e44","e6"].forEach(function(key){ $("out_"+key).textContent = fd(v[key]); });
+    var rows = [["위 이음: 안쪽끝 → T선", v.c18], ["위 이음: T선 → 바깥 모서리", v.c2],
+      ["아래 끝: 안쪽끝 → T선", v.e44], ["아래 끝: T선 → 바깥 끝", v.e6]];
+    if (hasL) {
+      var outer = v.c2 + L + v.e6, inner = L - v.c18 - v.e44 + (b - t)*0 ;
+      rows = [["길이 (② 두께선, 입력)", L, true], ["② 바깥선 길이", v.c2 + L + v.e6], ["② 안쪽선 길이", L - v.c18 - v.e44]].concat(rows);
+      if (L - v.c18 - v.e44 <= 0) return fail("길이가 너무 짧습니다.");
+    }
+    results(rows, [
+      ["각도 (사이각 / 꺾임)", f1(P)+"° / "+f1(180 - P)+"°"],
+      ["위 이음 절단", f1((180 - P)/2)+"° 경사"],
+      ["아래 끝", "① 과 나란히 (수평) 절단"]
+    ]);
+    drawE(FIX.E);
+  }
+
+  // F: 세로 ① 아래에 ② 를 사이각 P 로 맞대기 이음. 이음 단차 = b × tan((180 - P)/2)
+  function calcF(){
+    var S = ST.F, P = num(S.T), b = num(S.b), t = num(S.t2);
+    $("in_T").placeholder = "";
+    var miss = [];
+    if (!(P > 90 && P < 180)) miss.push("각도 (90~180 사이)");
+    if (!(b > 0)) miss.push("앵글사이즈");
+    if (t === null || t < 0) miss.push("T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (!(b > t)) return fail("앵글사이즈가 T보다 커야 합니다.");
+    var k = Math.tan(rad((180 - P)/2));
+    var v = {f19: b*k, fa: (b - t)*k, fb: t*k};
+    REC = Object.assign({type:"F", T:P, b:b, t2:t}, v);
+    $("out_f19").textContent = fd(v.f19);
+    results([
+      ["이음 단차 (앵글사이즈 전체)", v.f19, true], ["안쪽끝 → T선", v.fa], ["T선 → 바깥 모서리", v.fb]
+    ], [
+      ["각도 (사이각 / 꺾임)", (Math.round(P*100)/100)+"° / "+(Math.round((180-P)*100)/100)+"°"],
+      ["이음 절단 (양쪽 모두)", (Math.round((180-P)/2*100)/100)+"° 경사"]
+    ]);
+    drawF(FIX.F);
+  }
+
+  function drawF(o){
+    var P = o.P, b = o.b, t = o.t, k = Math.tan(rad((180 - P)/2));
+    var phi = rad(90 - P), d = [Math.cos(phi), Math.sin(phi)];        // ② 방향 (오른쪽 아래)
+    var up = 110, L2 = 190;                                            // ① 위로 길이, ② 길이 (그림용)
+    var A0 = [0, 0], B0 = [b, b*k];                                    // 이음선 양 끝 (왼쪽 아래, 오른쪽 위)
+    var pj = (B0[0] - A0[0])*d[0] + (B0[1] - A0[1])*d[1];             // ② 끝을 직각으로 맞추기
+    var A1 = [A0[0] + d[0]*L2, A0[1] + d[1]*L2], B1 = [B0[0] + d[0]*(L2 - pj), B0[1] + d[1]*(L2 - pj)];
+    var minX = -90, maxX = Math.max(A1[0], B1[0]) + 60, minY = Math.min(A1[1], B1[1]) - 20, maxY = up + 50;
+    var sc = Math.min(420/(maxX - minX), 420/(maxY - minY));
+    var padL = 70, padT = 60, padR = 90, padB = 40;
+    var w = (maxX - minX)*sc + padL + padR, h = (maxY - minY)*sc + padT + padB;
+    var Pt = function(p){ return [padL + (p[0] - minX)*sc, padT + (maxY - p[1])*sc]; };
+    var WHITE = "#e9edf0", s = "";
+    var ln = function(p, q, wd){ var a = Pt(p), c = Pt(q); s += '<line x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+c[0].toFixed(1)+'" y2="'+c[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"/>'; };
+    var lns = function(a, c, wd){ s += '<line x1="'+a[0].toFixed(1)+'" y1="'+a[1].toFixed(1)+'" x2="'+c[0].toFixed(1)+'" y2="'+c[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1)+'"/>'; };
+    var arrow = function(tip, dir){
+      var L = 12, W = 3.4, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      s += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    var place = function(key, p, dx, dy){ var e = EL[key]; e.style.left = ((p[0]+(dx||0))/w*100)+"%"; e.style.top = ((p[1]+(dy||0))/h*100)+"%"; };
+    s += '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>';
+    s += '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+    // ① 세로 앵글 (T선은 오른쪽)
+    ln([0, up], [b, up]); ln(A0, [0, up]); ln(B0, [b, up]); ln([b - t, B0[1] - t*0], [b - t, up], 1);
+    // 이음선
+    ln(A0, B0);
+    // ② 앵글 (T선은 오른쪽 위 변 안쪽)
+    ln(A0, A1); ln(B0, B1); ln(A1, [A1[0] + (B1[0]-A1[0]), A1[1] + (B1[1]-A1[1])]);
+    var n = [-d[1], d[0]];                                              // ② 의 왼쪽 법선
+    var Tt = [B0[0] - n[0]*t, B0[1] - n[1]*t];
+    ln([Tt[0] - d[0]*t*k, Tt[1] - d[1]*t*k], [B1[0] - n[0]*t, B1[1] - n[1]*t], 1);
+    // 치수: 위 폭 b, 왼쪽 세로 단차, 각도 원호 (오른쪽, ① 위쪽 ~ ② 방향)
+    var y0 = Pt([0, up])[1] - 34, xa = Pt([0, 0])[0], xb = Pt([b, 0])[0];
+    lns([xa, Pt([0, up])[1] - 4], [xa, y0 - 8]); lns([xb, Pt([b, up])[1] - 4], [xb, y0 - 8]);
+    lns([xa, y0], [xb, y0]); arrow([xa, y0], [-1, 0]); arrow([xb, y0], [1, 0]);
+    var xs = Pt([0, 0])[0] - 46, ya = Pt(A0)[1], yb = Pt(B0)[1];
+    lns([Pt(A0)[0] - 4, ya], [xs - 8, ya]); lns([Pt(B0)[0] - 4, yb], [xs - 8, yb]);
+    lns([xs, yb - 22], [xs, ya + 22]); arrow([xs, yb], [0, 1]); arrow([xs, ya], [0, -1]);
+    var c = Pt(B0), r = 70, a0 = -Math.PI/2, a1 = Math.atan2(-d[1], d[0]);
+    var p0 = [c[0] + r*Math.cos(a0), c[1] + r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] + r*Math.sin(a1)];
+    s += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r+' '+r+' 0 0 1 '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+    arrow(p0, [-1, 0]); arrow(p1, [-Math.sin(a1), Math.cos(a1)]);
+    var svg = $("svg");
+    svg.setAttribute("viewBox", "0 0 "+w.toFixed(0)+" "+h.toFixed(0));
+    svg.innerHTML = s;
+    place("b", [(xa + xb)/2, y0], 0, -18);
+    place("t2", Pt([b/2, up*0.55]));
+    place("f19", [xs, (ya + yb)/2], -40, 0);
+    var am = (a0 + a1)/2; place("T", [c[0] + (r + 40)*Math.cos(am), c[1] + (r + 40)*Math.sin(am)]);
+  }
+
+  function drawE(o){
+    var cs = Math.cos(o.dl), sn = Math.sin(o.dl), b = o.b, t = o.t, k = o.k, ct = o.ct;
+    var u = [cs, -sn], n = [-sn, -cs];                     // ② direction (down-right), toward inside
+    var Q = function(s0, off){ return [u[0]*s0 + n[0]*off, u[1]*s0 + n[1]*off]; };
+    var sTe = t*k + o.L, sOe = sTe + t*ct, sIe = sTe - (b - t)*ct;
+    var stub = Math.max(b*1.6, 60);
+    var pts = [[-stub,0],[-stub,-b], Q(sOe,0), Q(sIe,b)];
+    var minX = Math.min.apply(null, pts.map(function(p){ return p[0]; })), maxX = Math.max.apply(null, pts.map(function(p){ return p[0]; }));
+    var minY = Math.min.apply(null, pts.map(function(p){ return p[1]; })), maxY = 0;
+    var sc = Math.min(520/(maxX - minX), 460/(maxY - minY));
+    var padL = 90, padT = 90, padR = 130, padB = 70;
+    var w = (maxX - minX)*sc + padL + padR, h = (maxY - minY)*sc + padT + padB;
+    var P = function(p){ return [padL + (p[0] - minX)*sc, padT + (maxY - p[1])*sc]; };
+    var WHITE = "#e9edf0", s = "";
+    var add = function(p, v, m){ return [p[0] + v[0]*m, p[1] + v[1]*m]; };
+    var ln = function(p, q, wd){ s += '<line x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"/>'; };
+    var arrow = function(tip, dir){
+      var L = 13, W = 3.6, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      s += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    var dim = function(p1, p2, off, small){
+      var dx = p2[0]-p1[0], dy = p2[1]-p1[1], len = Math.hypot(dx, dy);
+      var uu = [dx/len, dy/len], nn = [-uu[1], uu[0]], sg = off < 0 ? -1 : 1;
+      var a1 = add(p1, nn, off), a2 = add(p2, nn, off);
+      ln(add(p1, nn, sg*3), add(p1, nn, off + sg*7), 1); ln(add(p2, nn, sg*3), add(p2, nn, off + sg*7), 1);
+      if (small) { ln(add(a1, uu, -14), add(a2, uu, 14), 1); arrow(a1, uu); arrow(a2, [-uu[0], -uu[1]]); }
+      else { ln(a1, a2, 1); arrow(a1, [-uu[0], -uu[1]]); arrow(a2, uu); }
+      return [(a1[0]+a2[0])/2, (a1[1]+a2[1])/2];
+    };
+    var place = function(key, p, dx, dy){ var e = EL[key]; e.style.left = ((p[0]+(dx||0))/w*100)+"%"; e.style.top = ((p[1]+(dy||0))/h*100)+"%"; };
+
+    s += '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>';
+    s += '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+
+    var J = [0,0], Ci = Q(b*k, b), Ct = Q(t*k, t);
+    // ① stub
+    ln(P([-stub,0]), P(J)); ln(P([-stub,-b]), P(Ci)); ln(P([-stub,0]), P([-stub,-b]));
+    if (t > 0) ln(P([-stub,-t]), P(Ct), 1);
+    ln(P(Ci), P(J));                                           // miter line
+    // ② outer, thickness, inner lines and the horizontal bottom cut
+    var Oe = Q(sOe, 0), Te = Q(sTe, t), Ie = Q(sIe, b);
+    ln(P(J), P(Oe)); if (t > 0) ln(P(Ct), P(Te), 1); ln(P(Ci), P(Ie)); ln(P(Ie), P(Oe));
+
+    // dimensions along ②, on the outer side (points projected onto the outer line)
+    var on = function(s0){ return P(Q(s0, 0)); };
+    var m2 = dim(on(0), on(t*k), -26, true);
+    var m18 = dim(on(t*k), on(b*k), -26, true);
+    var mL = dim(on(t*k), on(sTe), -62);
+    var m44 = dim(on(sIe), on(sTe), -26, true);
+    var m6 = dim(on(sTe), on(sOe), -26, true);
+    var mb = dim(P([-stub,-b]), P([-stub,0]), -40);
+    // angle arc at the inner corner
+    var c = P(Ci), r = Math.min(90, o.L*sc*0.2), a0 = Math.PI, a1 = Math.atan2(sn, cs);
+    var p0 = [c[0] + r*Math.cos(a0), c[1] + r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] + r*Math.sin(a1)];
+    s += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 0 '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+    arrow(p0, [0,-1]); arrow(p1, [Math.sin(a1), -Math.cos(a1)]);
+
+    var svg = $("svg");
+    svg.setAttribute("viewBox", "0 0 "+w.toFixed(0)+" "+h.toFixed(0));
+    svg.innerHTML = s;
+
+    place("b", mb); place("t2", P([-stub*0.45, -b/2]));
+    var am = (a0 + a1)/2; place("T", [c[0] + r*0.6*Math.cos(am), c[1] + r*0.6*Math.sin(am)]);
+    place("c2", m2, -10, -34); place("c18", m18, 66, -6);
+    place("Le", mL, 26, -26);
+    place("e44", m44, 20, -28); place("e6", m6, 56, -4);
+  }
+
+  // C: ① (horizontal, outer edge on top) and ② mitered at the inner corner; T = angle between them (e.g. 135)
+  // C: only 각도 (angle between ① and ②, e.g. 135), 앵글사이즈, T → the two joint offsets
+  function calcC(){
+    var S = ST.C, P = num(S.T), b = num(S.b), t = num(S.t2);
+    $("in_T").placeholder = "";
+    var miss = [];
+    if (!(P > 90 && P < 180)) miss.push("각도 (90~180 사이)");
+    if (!(b > 0)) miss.push("앵글사이즈");
+    if (t === null || t < 0) miss.push("T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    if (!(b > t)) return fail("앵글사이즈가 T보다 커야 합니다.");
+    var dl = rad(180 - P), k = Math.tan(dl/2);
+    var v = {c18:(b - t)*k, c2:t*k};
+    REC = Object.assign({type:"C", T:P, b:b, t2:t}, v);
+    ["c18","c2"].forEach(function(key){ $("out_"+key).textContent = fd(v[key]); });
+    results([
+      ["이음 위: 안쪽끝 → T선", v.c18], ["이음 위: T선 → 바깥 모서리", v.c2],
+      ["합계 (안쪽 끝 → 바깥 모서리)", v.c18 + v.c2]
+    ], [
+      ["각도 (사이각 / 꺾임)", f1(P)+"° / "+f1(180 - P)+"°"],
+      ["이음 절단 (양쪽 모두)", f1((180 - P)/2)+"° 경사"]
+    ]);
+    // sketch lengths only (not to any real length)
+    var Ls = Math.max(300, b*6);
+    drawC(FIX.C);
+  }
+
+  // D: same miter joint as C, with lengths. 가로값·세로값·각도 (two of three) + optional ① 길이
+  function calcD(){
+    var S = ST.D, L1 = num(S.L1), H = num(S.H), B = num(S.B), b = num(S.b), t = num(S.t2);
+    // 각도: 135 (between ① and ②, inner) or 45 (at the outer corner, from the ① top line) — whichever was typed last
+    var P = S.lastAng === "T2" ? (num(S.T2) === null ? null : 180 - num(S.T2)) : num(S.T);
+    var have = {H: H > 0, B: B > 0, T: P > 90 && P < 180};
+    var ord = (S.ord && S.ord.length === 2) ? S.ord : ["H","B"];
+    var calcKey = ["H","B","T"].filter(function(k){ return ord.indexOf(k) < 0; })[0];
+    if (!have[ord[0]] || !have[ord[1]]) {
+      var avail = ["H","B","T"].filter(function(k){ return have[k]; });
+      if (avail.length >= 2) calcKey = ["H","B","T"].filter(function(k){ return avail.slice(0,2).indexOf(k) < 0; })[0];
+    }
+    if (calcKey === "T") P = (have.H && have.B) ? 180 - deg(Math.atan2(H, B)) : null;
+    if (calcKey === "B") B = (have.H && have.T) ? H/Math.tan(rad(180 - P)) : null;
+    if (calcKey === "H") H = (have.B && have.T) ? B*Math.tan(rad(180 - P)) : null;
+    [["H",H],["B",B]].forEach(function(p){
+      var e = $("in_"+p[0]);
+      if (p[0] === calcKey) { clr(e); e.placeholder = p[1] > 0 ? fd(p[1]) : ""; } else e.placeholder = "";
+    });
+    // angle boxes: the typed one stays, the other (and both when the angle is calculated) shows grey
+    var angTyped = calcKey === "T" ? null : (S.lastAng === "T2" ? "T2" : "T");
+    ["T","T2"].forEach(function(k){
+      var e = $("in_"+k), val = P > 90 && P < 180 ? (k === "T" ? P : 180 - P) : null;
+      if (k === angTyped) e.placeholder = ""; else { clr(e); e.placeholder = val ? fd(val) : ""; }
+    });
+    $("in_L1").placeholder = "";
+    var miss = [];
+    if (!(H > 0 && B > 0 && P > 90 && P < 180)) miss.push("가로값·세로값·각도 중 두 개 (각도는 90~180)");
+    if (!(b > 0)) miss.push("앵글사이즈");
+    if (t === null || t < 0) miss.push("T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    var dl = rad(180 - P), k = Math.tan(dl/2), L2 = Math.hypot(B, H);
+    var hasL1 = L1 > 0; if (!hasL1) L1 = 0;
+    var v = {c18:(b - t)*k, c2:t*k, L1i:hasL1 ? L1 - b*k : null, L2i:L2 - b*k, L:L2 - t*k, L2o:L2, Lt:hasL1 ? L1 + B : null};
+    if ((hasL1 && v.L1i <= 0) || v.L2i <= 0) return fail("앵글사이즈에 비해 길이가 너무 짧습니다.");
+    REC = Object.assign({type:"D", L1:L1, H:H, B:B, T:P, b:b, t2:t}, v);
+    ["Lt","L"].forEach(function(key){ $("out_"+key).textContent = v[key] === null ? "" : fd(v[key]); });
+    results((hasL1 ? [["전체 길이 (① 길이 + 가로값)", v.Lt], ["① 바깥 길이 (입력)", L1], ["① 안쪽 길이", v.L1i]] : []).concat([
+      ["값 (② 두께선 길이)", v.L, true], ["② 바깥 길이", v.L2o], ["② 안쪽 길이", v.L2i],
+      ["이음 위: 안쪽끝 → T선", v.c18], ["이음 위: T선 → 바깥 모서리", v.c2]
+    ]), [
+      ["가로값 / 세로값 거리", f1(B)+" / "+f1(H)],
+      ["각도 (사이각 / 꺾임)", f1(P)+"° / "+f1(180 - P)+"°"],
+      ["이음 절단 (양쪽 모두)", f1((180 - P)/2)+"° 경사"],
+      ["② 끝", "직각 절단"]
+    ]);
+    drawC(FIX.D);
+  }
+
+  function drawC(o){
+    var cs = Math.cos(o.dl), sn = Math.sin(o.dl), b = o.b, t = o.t, k = o.k;
+    var u = [cs, -sn], n = [-sn, -cs];                     // ② direction (down-right), ② inward normal
+    var E = [o.B, -o.H];
+    var minX = -o.L1, maxX = Math.max(o.B, E[0] + b*n[0]), minY = Math.min(-b, E[1] + b*n[1]), maxY = 0;
+    var sc = o.full ? Math.min(560/(maxX - minX), 460/(maxY - minY)) : Math.min(660/(maxX - minX), 560/(maxY - minY));   // C타입은 크게
+    var padL = o.full ? 80 : 60, padT = o.full ? 160 : 100, padR = o.full ? 120 : 60, padB = o.full ? 60 : 40;
+    var w = (maxX - minX)*sc + padL + padR, h = (maxY - minY)*sc + padT + padB;
+    var P = function(p){ return [padL + (p[0] - minX)*sc, padT + (maxY - p[1])*sc]; };
+    var WHITE = "#e9edf0", s = "";
+    var add = function(p, v, m){ return [p[0] + v[0]*m, p[1] + v[1]*m]; };
+    var ln = function(p, q, wd){ s += '<line x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"/>'; };
+    var arrow = function(tip, dir){
+      var L = 13, W = 3.6, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      s += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    // aligned dimension between screen points, offset along the left normal (px); returns the middle of the dim line
+    var dim = function(p1, p2, off, small){
+      var dx = p2[0]-p1[0], dy = p2[1]-p1[1], len = Math.hypot(dx, dy);
+      var uu = [dx/len, dy/len], nn = [-uu[1], uu[0]], sg = off < 0 ? -1 : 1;
+      var a1 = add(p1, nn, off), a2 = add(p2, nn, off);
+      ln(add(p1, nn, sg*3), add(p1, nn, off + sg*7), 1); ln(add(p2, nn, sg*3), add(p2, nn, off + sg*7), 1);
+      if (small) { ln(add(a1, uu, -14), add(a2, uu, 14), 1); arrow(a1, uu); arrow(a2, [-uu[0], -uu[1]]); }
+      else { ln(a1, a2, 1); arrow(a1, [-uu[0], -uu[1]]); arrow(a2, uu); }
+      return [(a1[0]+a2[0])/2, (a1[1]+a2[1])/2];
+    };
+    var place = function(key, p, dx, dy){ var e = EL[key]; e.style.left = ((p[0]+(dx||0))/w*100)+"%"; e.style.top = ((p[1]+(dy||0))/h*100)+"%"; };
+
+    s += '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>';
+    s += '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+
+    var J = [0,0], Ci = [-b*k, -b], Ct = [-t*k, -t];
+    // ①
+    ln(P([-o.L1,0]), P(J)); ln(P([-o.L1,-b]), P(Ci)); ln(P([-o.L1,0]), P([-o.L1,-b]));
+    if (t > 0) ln(P([-o.L1,-t]), P(Ct), 1);
+    // miter line
+    ln(P(Ci), P(J));
+    // ②
+    ln(P(J), P(E)); ln(P(Ci), P(add(E, n, b))); ln(P(E), P(add(E, n, b)));
+    if (t > 0) ln(P(Ct), P(add(E, n, t)), 1);
+
+    // dimensions (lengths are not dimensioned in C: the drawing lengths are only a sketch)
+    var mb = dim(P([-o.L1,-b]), P([-o.L1,0]), -40);
+    if (!o.full) {
+      var m18 = dim(P([Ci[0],0]), P([Ct[0],0]), -22, true);
+      var m2 = dim(P([Ct[0],0]), P(J), -22, true);
+    } else {                                                          // D: dimensions as in the sketch
+      var mLt = dim(P([-o.L1,0]), P([o.B,0]), -120);                 // 전체 길이
+      var mL1 = dim(P([-o.L1,0]), P(J), -70);
+      var mB = dim(P(J), P([o.B,0]), -70);
+      ln(P(J), [P([E[0],0])[0] + 70, P(J)[1]], 1);                    // top edge extension for the 세로값 dimension
+      var mH = dim(P([E[0],0]), P(E), -70);
+      var mL2 = dim(P(add(E, n, t)), P(Ct), 78 + t*sc);             // ② 두께선 길이
+      // 45° arc at the outer corner, between the ① top line (to the right) and ②
+      var cJ = P(J), rJ = Math.min(80, Math.hypot(o.B, o.H)*sc*0.2), aJ = Math.atan2(sn, cs);
+      var q0 = [cJ[0] + rJ, cJ[1]], q1 = [cJ[0] + rJ*Math.cos(aJ), cJ[1] + rJ*Math.sin(aJ)];
+      s += '<path d="M'+q0[0].toFixed(1)+' '+q0[1].toFixed(1)+' A'+rJ.toFixed(1)+' '+rJ.toFixed(1)+' 0 0 1 '+q1[0].toFixed(1)+' '+q1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+      arrow(q0, [0,-1]); arrow(q1, [-Math.sin(aJ), Math.cos(aJ)]);
+      ln(P(J), [cJ[0] + rJ + 12, cJ[1]], 1);
+      var mJ = [cJ[0] + (rJ + 46)*Math.cos(aJ/2), cJ[1] + (rJ + 46)*Math.sin(aJ/2)];
+    }
+    // angle arc at the inner corner: from ① bottom edge (left) round to ② inner line
+    var c = P(Ci), r = Math.min(120, (o.L1*sc)*0.3), a0 = Math.PI, a1 = Math.atan2(sn, cs);
+    var p0 = [c[0] + r*Math.cos(a0), c[1] + r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] + r*Math.sin(a1)];
+    s += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 0 '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+    arrow(p0, [0,-1]); arrow(p1, [Math.sin(a1), -Math.cos(a1)]);
+
+    var svg = $("svg");
+    svg.setAttribute("viewBox", "0 0 "+w.toFixed(0)+" "+h.toFixed(0));
+    svg.innerHTML = s;
+
+    place("b", mb, 46, 0);   // 앵글사이즈 칸 오른쪽으로 (C·D)
+    place("t2", P([-o.L1*0.55, -b/2]));
+    if (!o.full) { place("c18", m18, -40, -26); place("c2", m2, 36, -26); }
+    else { place("Lt", mLt); place("L1", mL1); place("B", mB); place("H", mH, -22, -45); place("L", mL2, 22, 36); place("T2", mJ); }
+    var am = (a0 + a1)/2; place("T", [c[0] + r*0.62*Math.cos(am), c[1] + r*0.62*Math.sin(am)]);
+  }
+
+  // 세로값 / 가로값 / 각도: the two most recently typed decide, the third is calculated and shown grey
+  // xo: the 가로값 box is measured from xo mm further left than the brace start (A: ① outer face, xo = ① T)
+  function resolve3(S, defOrd, xo){
+    xo = xo || 0;
+    var H = num(S.H), B = num(S.B), T = readAngle(S);
+    if (B !== null) B = B - xo;
+    var ord = (S.ord && S.ord.length === 2) ? S.ord : defOrd;
+    var have = {H: H > 0, B: B > 0, T: T > 0 && T < 90};
+    var calcKey = ["H","B","T"].filter(function(k){ return ord.indexOf(k) < 0; })[0];
+    if (!have[ord[0]] || !have[ord[1]]) {
+      var avail = ["H","B","T"].filter(function(k){ return have[k]; });
+      if (avail.length >= 2) calcKey = ["H","B","T"].filter(function(k){ return avail.slice(0,2).indexOf(k) < 0; })[0];
+    }
+    if (calcKey === "T") T = (have.H && have.B) ? deg(Math.atan2(B, H)) : null;
+    if (calcKey === "B") B = (have.H && have.T) ? H*Math.tan(rad(T)) : null;
+    if (calcKey === "H") H = (have.B && have.T) ? B/Math.tan(rad(T)) : null;
+    ["H","B"].forEach(function(k){
+      var e = $("in_"+k), val = k === "H" ? H : (B === null ? null : B + xo);
+      if (k === calcKey) { clr(e); e.placeholder = val > 0 ? fd(val) : ""; } else e.placeholder = "";
+    });
+    if (calcKey === "T") { clr($("in_T")); clr($("in_T2")); $("in_T").placeholder = T ? fd(T) : ""; $("in_T2").placeholder = T ? fd(90 - T) : ""; }
+    else showAngle(S, T);
+    return {H:H, B:B, T:T};
+  }
+
+  // A: 세로값 = height where the ② outer line meets the ① T face, 가로값 = from the ① T face to the ② floor end
+  function calcA(){
+    var S = ST.A, b1 = num(S.b1), t1 = num(S.t1), b = num(S.b), t2 = num(S.t2);
+    // 가로값 box = from the ① outer face (the standing angle's end) to the ② floor end
+    var r3 = resolve3(S, ["H","T"], t1 > 0 ? t1 : 0), H = r3.H, B = r3.B, T = r3.T;
+    var miss = [];
+    if (!(T > 0 && T < 90) || !(H > 0) || !(B > 0)) miss.push("세로값 거리·가로값 거리·각도 중 두 개");
+    if (!(b1 > 0)) miss.push("① 앵글사이즈");
+    if (t1 === null || t1 < 0) miss.push("① T");
+    if (!(b > 0)) miss.push("② 앵글사이즈");
+    if (t2 === null || t2 < 0) miss.push("② T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    var th = rad(T);
+    if (!(t1 + B > b1)) return fail("가로값 거리가 너무 짧습니다.");
+    var g = geom(t1, H, th, t2, b1, b);
+    if (!(g.It[1] > 0) || !(g.If[0] > b1)) return fail("앵글사이즈가 너무 커서 ② 안쪽선이 그려지지 않습니다.");
+
+    var v = {g0:-g.pUt, ga:g.pUX, na:g.pIt - g.pUX, da:g.L - g.pIf, g1:g.pUf - g.L, L:g.L};
+    REC = Object.assign({type:"A", H:H, B:t1 + B, T:T, b1:b1, t1:t1, b:b, t2:t2}, v);
+    ["g0","ga","na","da","g1","L"].forEach(function(k){ $("out_"+k).textContent = fd(v[k]); });
+    results([
+      ["위 끝 단차", v.g0], ["→ ① 앵글 끝선까지", v.ga], ["→ ② 안쪽선 시작까지", v.na],
+      ["값", v.L, true], ["② 안쪽선 끝 → 아래 끝", v.da], ["아래 끝 단차", v.g1]
+    ], [
+      ["세로값 / 가로값 거리", f1(H)+" / "+f1(t1 + B)],
+      ["각도 (위 / 아래)", f1(T)+"° / "+f1(90-T)+"°"],
+      ["① T면 ~ ② 바닥 끝 (계산용 가로)", f1(B)+" mm"],
+      ["② 위 끝 (세로로 자름)", f1(90-T)+"° 경사"],
+      ["② 아래 끝 (바닥에 수평)", f1(T)+"° 경사"]
+    ]);
+    draw(FIX.A());
+  }
+
+  function calcB(){
+    var S = ST.B, H = num(S.H), B = num(S.B), T = readAngle(S), b = num(S.b), t2 = num(S.t2);
+    var ord = (S.ord && S.ord.length === 2) ? S.ord : ["H","T"];
+    var have = {H: H > 0, B: B > 0, T: T > 0 && T < 90};
+    // the two most recently typed of 세로값 / 가로값 / 각도 decide; the third is calculated
+    var calcKey = ["H","B","T"].filter(function(k){ return ord.indexOf(k) < 0; })[0];
+    if (!have[ord[0]] || !have[ord[1]]) {
+      var avail = ["H","B","T"].filter(function(k){ return have[k]; });
+      if (avail.length >= 2) calcKey = ["H","B","T"].filter(function(k){ return avail.slice(0,2).indexOf(k) < 0; })[0];
+    }
+    if (calcKey === "T") { if (have.H && have.B) T = deg(Math.atan2(B, H)); else T = null; }
+    if (calcKey === "B") { B = (have.H && have.T) ? H*Math.tan(rad(T)) : null; }
+    if (calcKey === "H") { H = (have.B && have.T) ? B/Math.tan(rad(T)) : null; }
+    // show calculated values as grey hints in their boxes
+    ["H","B"].forEach(function(k){
+      var e = $("in_"+k);
+      if (k === calcKey) { clr(e); e.placeholder = (k === "H" ? H : B) > 0 ? fd(k === "H" ? H : B) : ""; } else e.placeholder = "";
+    });
+    if (calcKey === "T") { clr($("in_T")); clr($("in_T2")); $("in_T").placeholder = T ? fd(T) : ""; $("in_T2").placeholder = T ? fd(90 - T) : ""; }
+    else showAngle(S, T);
+
+    var miss = [];
+    if (!(T > 0 && T < 90) || !(H > 0) || !(B > 0)) miss.push("세로값 거리·가로값 거리·각도 중 두 개");
+    if (!(b > 0)) miss.push("② 앵글사이즈");
+    if (t2 === null || t2 < 0) miss.push("② T");
+    if (miss.length) return fail(miss.join(", ") + " 칸을 넣어 주세요.");
+    var th = rad(T), g = geom(0, H, th, t2, 0, b);
+    if (!(g.It[1] > 0) || !(g.If[0] > 0)) return fail("앵글사이즈가 너무 커서 ② 안쪽선이 그려지지 않습니다.");
+
+    var v = {g0:-g.pUt, na:g.pIt, da:g.L - g.pIf, g1:g.pUf - g.L, L:g.L};
+    REC = Object.assign({type:"B", H:H, B:B, T:T, b:b, t2:t2}, v);
+    ["g0","na","da","g1","L"].forEach(function(k){ $("out_"+k).textContent = fd(v[k]); });
+    results([
+      ["위 끝 단차", v.g0], ["→ ② 안쪽선 시작까지", v.na],
+      ["값", v.L, true], ["② 안쪽선 끝 → 아래 끝", v.da], ["아래 끝 단차", v.g1]
+    ], [
+      ["세로값 / 가로값 거리", f1(H)+" / "+f1(B)],
+      ["각도 (위 / 아래)", f1(T)+"° / "+f1(90-T)+"°"],
+      ["② 위 끝 (세로로 자름)", f1(90-T)+"° 경사"],
+      ["② 아래 끝 (바닥에 수평)", f1(T)+"° 경사"]
+    ]);
+    draw(FIX.B());
+  }
+
+  function results(chain, shape){
+    var out = '<div class="card"><h3>'+(TYPE === "Q" || TYPE === "M" || TYPE === "R" || TYPE === "S" ? '파이프 기록' : TYPE === "P" ?'② 파이프 기록' : '② 빗대 앵글 기록 (위에서 아래 순서)')+'</h3>'
+      + chain.map(function(c){ return row(c[0], f1(c[1])+" mm", c[2]); }).join("")
+      + '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="saveRec">기록 저장</button>'
+      + ("PRSQM".indexOf(TYPE) >= 0 ? '<button type="button" class="btn cadbtn" id="saveCad">CAD 저장 (DWG)</button>' : '') + '</div>'
+      + ("PRSQM".indexOf(TYPE) >= 0 ? '<p class="hint" id="cadMsg" style="margin:8px 0 0"></p>' : '') + '</div>';
+    out += '<div class="card"><h3>형상 · 절단각</h3>' + shape.map(function(c){ return row(c[0], c[1]); }).join("") + '</div>';
+    $("results").innerHTML = out;
+    $("saveRec").addEventListener("click", saveRecord);
+    if ($("saveCad")) $("saveCad").addEventListener("click", saveCad);
+  }
+  // 파이프 CAD(DWG 2013) 만들기: PC 프로그램(앵글계산기_실행.bat)이 켜져 있으면
+  //  이 화면을 바로 열었어도(파일 더블클릭) 프로그램으로 보내서 저장한다
+  function saveCad(){
+    var msg = $("cadMsg");
+    if (!REC || "PRSQM".indexOf(REC.type) < 0) return;
+    msg.textContent = "CAD 만드는 중…";
+    fetch("http://127.0.0.1:8765/cad", {method: "POST", headers: {"Content-Type": "text/plain"},
+                   body: JSON.stringify({type: REC.type, H: REC.H, B: REC.B, T: REC.T, odm: REC.odm, tm: REC.tm, od: REC.od, tb: REC.tb, Cq: REC.Cq, odm2: REC.odm2, Lq: REC.Lq, Lm: REC.Lm, memo: $("memo").value.trim()})})
+      .then(function(r){ return r.json(); })
+      .then(function(j){ msg.textContent = j.ok ? ("저장하고 열었어요: " + j.file) : ("저장 못 함: " + j.error); })
+      .catch(function(){ msg.textContent = "PC 프로그램이 꺼져 있어요. dev\\앵글계산기\\앵글계산기_실행.bat 를 먼저 실행하고 다시 누르세요."; });
+  }
+
+  function fail(msg){
+    $("results").innerHTML = '<div class="card err">'+msg+'</div>';
+    ["g0","ga","na","da","g1","L","c18","c2","Lt","e44","e6","f19","pTop","pBot","pLi","pLc","qH","qC","mC","mT","rY","rVL","rVS","rC","qH2","rT"].forEach(function(k){ $("out_"+k).textContent = ""; });
+    REC = null;
+    // keep the fixed picture on screen even when a value is missing
+    if (TYPE === "A") draw(FIX.A()); else if (TYPE === "B") draw(FIX.B());
+    else if (TYPE === "C") drawC(FIX.C); else if (TYPE === "D") drawC(FIX.D);
+    else if (TYPE === "E") drawE(FIX.E); else if (TYPE === "F") drawF(FIX.F); else if (TYPE === "Q") drawQ(); else if (TYPE === "M") drawM(); else if (TYPE === "R") drawR(); else if (TYPE === "S") drawS(); else drawP(FIX.P);
+  }
+
+  function draw(o){
+    var g = o.g, H = o.H, b = o.b, t2 = o.t2, isA = o.type === "A";
+    // A: ① from x=0 (outer) to b1, height H.  B: ① drawn left of the face x=0 (schematic 50 wide, T 6), taller than the brace.
+    var topY = isA ? g.Y + Math.max(10, g.Y*0.03) : g.Y*1.2;
+    var leftX = isA ? 0 : -50;
+    var sc = 440/topY, padL = 110 + (isA ? 0 : 50*0), padT = 80, padR = 150, padB = 90;
+    var w = (g.X - leftX)*sc + padL + padR, h = topY*sc + padT + padB;
+    var P = function(p){ return [padL + (p[0] - leftX)*sc, padT + (topY - p[1])*sc]; };
+    var WHITE = "#e9edf0", s = "";
+    var ln = function(p, q, wd, dash){ s += '<line x1="'+p[0].toFixed(1)+'" y1="'+p[1].toFixed(1)+'" x2="'+q[0].toFixed(1)+'" y2="'+q[1].toFixed(1)+'" stroke="'+WHITE+'" stroke-width="'+(wd||1.4)+'"'+(dash?' stroke-dasharray="5 4"':'')+'/>'; };
+    var arrow = function(tip, dir){
+      var L = 13, W = 3.6, bx = tip[0] - dir[0]*L, by = tip[1] - dir[1]*L;
+      s += '<polygon points="'+tip[0].toFixed(1)+','+tip[1].toFixed(1)+' '+(bx - dir[1]*W).toFixed(1)+','+(by + dir[0]*W).toFixed(1)+' '+(bx + dir[1]*W).toFixed(1)+','+(by - dir[0]*W).toFixed(1)+'" fill="'+WHITE+'"/>';
+    };
+    var place = function(k, p, dx, dy){ var e = EL[k]; e.style.left = ((p[0]+(dx||0))/w*100)+"%"; e.style.top = ((p[1]+(dy||0))/h*100)+"%"; };
+    var d = [g.s, -g.co], n = [-g.co, -g.s];
+    var on = function(p, k){ return [p[0] + d[0]*k, p[1] + d[1]*k]; };
+    var inward = function(p, k){ return [p[0] + n[0]*k, p[1] + n[1]*k]; };
+    var onW = function(k){ return on(g.Wt, k); };
+
+    s += '<defs><pattern id="g" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#2e3843" stroke-width="1"/></pattern></defs>';
+    s += '<rect width="100%" height="100%" fill="#222a33"/><rect width="100%" height="100%" fill="url(#g)"/>';
+
+    // ① vertical angle + floor
+    if (isA) {
+      ln(P([0,0]), P([0,topY])); if (o.t1 > 0) ln(P([o.t1,0]), P([o.t1,topY]), 1);
+      ln(P([o.b1,0]), P([o.b1,topY])); ln(P([0,topY]), P([o.b1,topY]));
+      ln(P([0,0]), P(g.Uf));
+    } else {
+      ln(P([-50,0]), P([-50,topY])); ln(P([-6,0]), P([-6,topY]), 1); ln(P([0,0]), P([0,topY]));
+      ln(P([-50,topY]), P([0,topY]));
+      ln(P([-50,0]), P(g.Uf));
+    }
+    // ② outer line, thickness line, inner line, dashed square lines at the inner line ends
+    ln(P(g.Ut), P(g.Uf));
+    if (t2 > 0) ln(P(g.Wt), P(g.Wf), 1);
+    ln(P(g.It), P(g.If));
+    ln(P(g.It), P(inward(g.It, -b)), 1, true);
+    ln(P(g.If), P(inward(g.If, -b)), 1, true);
+
+    // 값 dimension: between the two ends of the thickness line, extension lines square to the brace
+    var offMM = 95/sc;
+    var e1 = inward(g.Wt, -(t2 + offMM)), e2 = inward(g.Wf, -(t2 + offMM));
+    ln(P(g.Wt), P(inward(g.Wt, -(t2 + offMM + 8/sc))), 1);
+    ln(P(g.Wf), P(inward(g.Wf, -(t2 + offMM + 8/sc))), 1);
+    var a1 = P(e1), a2 = P(e2), du = [a2[0]-a1[0], a2[1]-a1[1]], dl = Math.hypot(du[0], du[1]);
+    du = [du[0]/dl, du[1]/dl];
+    ln(a1, a2, 1); arrow(a1, [-du[0], -du[1]]); arrow(a2, du);
+
+    // 세로값 거리 dimension (left of ①) and 가로값 거리 dimension (below the floor)
+    var hTop = g.Y, hxEdge = P([leftX, 0])[0];
+    var hx = hxEdge - 46;
+    ln([hxEdge - 4, P([0,0])[1]], [hx - 8, P([0,0])[1]], 1);
+    ln([P(g.Ut)[0], P([0,hTop])[1]], [hx - 8, P([0,hTop])[1]], 1);
+    ln([hx, P([0,0])[1]], [hx, P([0,hTop])[1]], 1); arrow([hx, P([0,hTop])[1]], [0,-1]); arrow([hx, P([0,0])[1]], [0,1]);
+    var bStart = 0, by = P([0,0])[1] + 44;
+    ln([P([bStart,0])[0], P([0,0])[1] + 4], [P([bStart,0])[0], by + 8], 1);
+    ln([P(g.Uf)[0], P(g.Uf)[1] + 4], [P(g.Uf)[0], by + 8], 1);
+    ln([P([bStart,0])[0], by], [P(g.Uf)[0], by], 1); arrow([P([bStart,0])[0], by], [-1,0]); arrow([P(g.Uf)[0], by], [1,0]);
+
+    // angle dimensions: arcs with arrows at both ends
+    var arcDim = function(c, a0, a1, r){
+      var p0 = [c[0] + r*Math.cos(a0), c[1] + r*Math.sin(a0)], p1 = [c[0] + r*Math.cos(a1), c[1] + r*Math.sin(a1)];
+      var sweep = a1 > a0 ? 1 : 0;
+      s += '<path d="M'+p0[0].toFixed(1)+' '+p0[1].toFixed(1)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 '+sweep+' '+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'" fill="none" stroke="'+WHITE+'" stroke-width="1"/>';
+      var sg = a1 > a0 ? 1 : -1;
+      arrow(p0, [ sg*Math.sin(a0), -sg*Math.cos(a0)]);
+      arrow(p1, [-sg*Math.sin(a1),  sg*Math.cos(a1)]);
+    };
+    var cTop = P(g.It), rTop = Math.min(110, g.Y*sc*0.3);
+    var aDown = Math.PI/2, aBrace = Math.atan2(g.co, g.s);
+    arcDim(cTop, aDown, aBrace, rTop);
+    var cBot = P(g.If), rBot = Math.min(95, g.Y*sc*0.22);
+    var aLeft = Math.PI, aUp = Math.atan2(-g.co, -g.s);
+    arcDim(cBot, aLeft, aUp + 2*Math.PI, rBot);
+
+    var svg = $("svg");
+    svg.setAttribute("viewBox", "0 0 "+w.toFixed(0)+" "+h.toFixed(0));
+    svg.innerHTML = s;
+
+    // boxes: chain boxes sit just outside the outer line
+    var outside = function(k, gap){ return P(inward(onW(k), -(t2 + gap/sc))); };
+    place("H", [hx, P([0, hTop*0.5])[1]], 0, 0);
+    place("B", [(P([bStart,0])[0] + P(g.Uf)[0])/2, by], 0, 0);
+    var mTop = (aDown + aBrace)/2;
+    place("T", [cTop[0] + Math.cos(mTop)*rTop*0.62, cTop[1] + Math.sin(mTop)*rTop*0.62], 0, 0);
+    place("T2", [cBot[0] - 46, cBot[1] - 18], 0, 0);
+    if (isA) { place("b1", P([o.b1/2, H*0.17]), 0, 0); place("t1", P([o.b1/2, H*0.06]), 0, 0); }
+    var arcTopK = g.pIf - rBot/sc - 10/sc;
+    place("t2", P(inward(onW(Math.min(g.L*0.8, arcTopK - 14/sc)), b/2)), 0, 0);
+    place("b", P(inward(onW(Math.min(g.L*0.7, arcTopK - 62/sc)), b/2)), 0, 0);
+    place("g0", outside(g.pUt/2, 26), 0, -6);
+    if (isA) { place("ga", outside(g.pUX/2, 30), 0, 0); place("na", outside((g.pUX + g.pIt)/2, 30), 0, 0); }
+    else place("na", outside(g.pIt/2, 30), 0, 8);
+    place("da", outside((g.pIf + g.L)/2, 30), 0, -4);
+    place("g1", outside(g.L + (g.pUf - g.L)/2, 30), 8, 22);
+    place("L", [(a1[0]+a2[0])/2, (a1[1]+a2[1])/2], 0, 0);
+  }
+
+  // saved records (this phone/PC only)
+  var HIST = [];
+  try { HIST = JSON.parse(localStorage.getItem("angle-calc-hist7") || "[]") || []; } catch(e){ HIST = []; }
+  function saveHist(){ try { localStorage.setItem("angle-calc-hist7", JSON.stringify(HIST)); } catch(e){} }
+  function saveRecord(){
+    if (!REC) return;
+    var d = new Date(), p = function(n){ return (n<10?"0":"")+n; };
+    HIST.unshift(Object.assign({when: d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()), memo: $("memo").value.trim()}, REC));
+    $("memo").value = ""; saveHist(); renderHist();
+  }
+  function renderHist(){
+    var box = $("hist");
+    if (!HIST.length) { box.innerHTML = '<p class="hint" style="margin:0">저장된 기록이 없습니다. 결과에서 "기록 저장"을 누르세요.</p>'; return; }
+    box.innerHTML = HIST.map(function(r, i){
+      var chain = r.type === "A"
+        ? fd(r.g0)+' · '+fd(r.ga)+' · '+fd(r.na)+' · <b>최종 '+f1(r.L)+'</b> · '+fd(r.da)+' · '+fd(r.g1)
+        : r.type === "B"
+        ? fd(r.g0)+' · '+fd(r.na)+' · <b>최종 '+f1(r.L)+'</b> · '+fd(r.da)+' · '+fd(r.g1)
+        : r.type === "C" ? '이음 '+fd(r.c18)+' / '+fd(r.c2)
+        : r.type === "P" ? '<b>긴 쪽 '+f1(r.L)+'</b> · 짧은 쪽 '+fd(r.pLi)+' · 본 H '+fd(r.pTop)+' / '+fd(r.pBot)
+        : r.type === "Q" ? (r.Lq ? '<b>긴 쪽 '+f1(r.L)+'</b> · 짧은 쪽 '+fd(r.Lq)+' · ' : '')+'본 H '+fd(r.qH)
+        : r.type === "R" ? '<b>지관 긴 쪽 '+f1(r.L)+'</b> · 짧은 쪽 '+fd(r.pLi)+' · 세로관 '+fd(r.rVL)+' / '+fd(r.rVS)
+        : r.type === "S" ? '<b>긴 쪽 '+f1(r.L)+'</b> · 짧은 쪽 '+fd(r.Lq)+' · 본 H '+fd(r.qH)
+        : r.type === "M" ? (r.Lm ? '<b>긴 쪽 '+f1(r.L)+'</b> · 짧은 쪽 '+fd(r.Lm)+' · ' : '')+'이음 단차 '+fd(r.mC)
+        : r.type === "F" ? '이음 단차 <b>'+fd(r.f19)+'</b> ('+fd(r.fa)+' / '+fd(r.fb)+')'
+        : r.type === "E" ? (r.Le ? '<b>길이 '+f1(r.Le)+'</b> · ' : '')+'위 '+fd(r.c18)+' / '+fd(r.c2)+' · 아래 '+fd(r.e44)+' / '+fd(r.e6)
+        : (r.L1 ? '① '+fd(r.L1)+' (안 '+fd(r.L1i)+') · ' : '')+'<b>② '+f1(r.L)+'</b> (안 '+fd(r.L2i)+') · 이음 '+fd(r.c18)+' / '+fd(r.c2);
+      var mit = r.type === "C" || r.type === "D" || r.type === "E" || r.type === "F";
+      var sub = r.type === "Q" ? '본관 '+r.odm+' · 지관 '+r.od+'×'+r.tb+'T'
+        : r.type === "M" ? fd(r.T)+'° · 파이프 '+r.od
+        : r.type === "R" ? '높이 '+fd(r.H)+' · 가로 '+fd(r.B)+' · '+fd(r.T)+'° · 본관 '+r.odm+' · 지관 '+r.od
+        : r.type === "S" ? '중심 '+fd(r.Cq)+' · 본관 '+r.odm+(r.odm2 && r.odm2 !== r.odm ? ' / '+r.odm2 : '')+' · 지관 '+r.od+'×'+r.tb+'T'
+        : (r.type === "C" || r.type === "E" || r.type === "F" ? '' : '세로 '+fd(r.H)+' · 가로 '+fd(r.B)+' · ')+fd(r.T)+'°'
+        + (r.type === "A" ? ' · ① '+fd(r.b1)+'×'+fd(r.t1)+'T' : '')
+        + (r.type === "P" ? ' · 본관 '+r.odm+' · 지관 '+r.od : ' · '+(mit ? '' : '② ')+fd(r.b)+'×'+fd(r.t2)+'T');
+      var tname = r.type === "P" ? "이경 가지관" : r.type === "Q" ? "T자 가지관" : r.type === "M" ? "파이프 꺾음" : r.type === "R" ? "가지관+꺾음" : r.type === "S" ? "T자 양쪽 본관" : r.type+"타입";
+      return '<div class="hrow"><div class="hhead"><b>['+tname+'] '+(r.memo ? r.memo.replace(/</g,"&lt;") : "기록 "+(HIST.length-i))+'</b><span>'+r.when+'</span></div>'
+        + '<div class="hvals">'+chain+'</div><div class="hsub">'+sub+'</div>'
+        + '<button type="button" class="btn small" data-del="'+i+'">삭제</button></div>';
+    }).join("");
+    box.querySelectorAll("[data-del]").forEach(function(btn){
+      btn.addEventListener("click", function(){ HIST.splice(+btn.dataset.del, 1); saveHist(); renderHist(); });
+    });
+  }
+
+  $("reset").addEventListener("click", function(){
+    ST[TYPE] = Object.assign({}, DEF[TYPE]);
+    setType(TYPE);
+  });
+  setType(TYPE); renderHist();
+})();
+</script>
+
+<style>
+.langRow{display:flex;justify-content:flex-end;margin-bottom:8px}
+#langBtn{min-height:32px;padding:4px 12px;border:1px solid #c9d3d9;border-radius:16px;background:#fff;color:#1b2328;font:600 13px sans-serif;cursor:pointer}
+html[lang="vi"] .tabs button{font-size:13px;white-space:nowrap;padding:0 2px}
+</style>
+<script>
+// 언어: 한국어 / Tiếng Việt (폰 언어가 베트남어면 처음부터 베트남어). 화면 글자를 사전으로 바꾼다.
+(function(){
+  var VI = {"마지막 업데이트": "Cập nhật lần cuối", "만든이": "Tác giả", "흰 입력 칸에 값을 넣으면 초록 계산 칸과 노란 값 칸이 나옵니다.": "Nhập số vào ô trắng, kết quả hiện ở ô xanh lá và ô vàng (giá trị).", "① 세로 앵글 + ② 빗대 앵글 (② 가 ① 두께면 안쪽에 붙는 타입).": "① thép V đứng + ② thanh chéo (② áp vào mặt trong độ dày T của ①).", "① 세로 앵글 + ② 빗대 앵글 (② 가 ① 바깥면에 바로 붙는 타입).": "① thép V đứng + ② thanh chéo (② áp trực tiếp vào mặt ngoài của ①).", "① 앵글 + ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입 (이음 단차만).": "Nối vát ① và ② theo góc (chỉ tính độ lệch mối nối).", "① 앵글 + ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입 (길이까지 계산).": "Nối vát ① và ② theo góc (tính cả chiều dài).", "맞대기(마이터) 이음 + ② 아래 끝을 ① 과 나란히(수평) 자르는 타입.": "Nối vát + đầu dưới ② cắt song song với ① (cắt ngang).", "세로 ① 앵글 아래에 ② 앵글을 각도대로 맞대기(마이터) 이음하는 타입.": "Nối vát ② vào đầu dưới của thép V ① đứng theo góc.", "규격 (반드시 입력)": "Quy cách (bắt buộc)", "입력 칸": "Ô nhập", "계산 칸": "Ô kết quả", "② 빗대 앵글 기록 (위에서 아래 순서)": "Kết quả thanh chéo ② (từ trên xuống)", "형상 · 절단각": "Hình dạng · Góc cắt", "위 끝 단차": "Độ lệch đầu trên", "아래 끝 단차": "Độ lệch đầu dưới", "→ ① 앵글 끝선까지": "→ đến mép thép V ①", "→ ② 안쪽선 시작까지": "→ đến đầu mép trong ②", "② 안쪽선 끝 → 아래 끝": "Cuối mép trong ② → đầu dưới", "세로값 / 가로값 거리": "Đứng / Ngang", "가로값 / 세로값 거리": "Ngang / Đứng", "각도 (위 / 아래)": "Góc (trên / dưới)", "각도 (사이각 / 꺾임)": "Góc (góc kẹp / góc gập)", "② 위 끝 (세로로 자름)": "Đầu trên ② (cắt đứng)", "② 아래 끝 (바닥에 수평)": "Đầu dưới ② (cắt ngang sát sàn)", "① T면 ~ ② 바닥 끝 (계산용 가로)": "Mặt T ① ~ đầu dưới ② (ngang dùng để tính)", "이음 위: 안쪽끝 → T선": "Mối nối: mép trong → đường T", "이음 위: T선 → 바깥 모서리": "Mối nối: đường T → góc ngoài", "합계 (안쪽 끝 → 바깥 모서리)": "Tổng (mép trong → góc ngoài)", "이음 절단 (양쪽 모두)": "Cắt vát mối nối (cả hai thanh)", "전체 길이 (① 길이 + 가로값)": "Tổng chiều dài (① + ngang)", "① 바깥 길이 (입력)": "Chiều dài ngoài ① (nhập)", "① 안쪽 길이": "Chiều dài trong ①", "값 (② 두께선 길이)": "Giá trị (theo đường T ②)", "② 바깥 길이": "Chiều dài ngoài ②", "② 안쪽 길이": "Chiều dài trong ②", "길이 (② 두께선, 입력)": "Chiều dài (đường T ②, nhập)", "② 바깥선 길이": "Chiều dài mép ngoài ②", "② 안쪽선 길이": "Chiều dài mép trong ②", "위 이음: 안쪽끝 → T선": "Nối trên: mép trong → đường T", "위 이음: T선 → 바깥 모서리": "Nối trên: đường T → góc ngoài", "아래 끝: 안쪽끝 → T선": "Đầu dưới: mép trong → đường T", "아래 끝: T선 → 바깥 끝": "Đầu dưới: đường T → mép ngoài", "위 이음 절단": "Cắt vát mối nối trên", "① 과 나란히 (수평) 절단": "cắt song song ① (ngang)", "이음 단차 (앵글사이즈 전체)": "Độ lệch mối nối (cả cỡ thép V)", "안쪽끝 → T선": "Mép trong → đường T", "T선 → 바깥 모서리": "Đường T → góc ngoài", "직각 절단": "cắt vuông", "° 경사": "° nghiêng", "저장한 기록": "Kết quả đã lưu", "메모 (선택, 저장할 때 같이 기록)": "Ghi chú (tuỳ chọn, lưu kèm)", "예: B681 서포트": "VD: B681 giá đỡ", "저장된 기록이 없습니다. 결과에서 \"기록 저장\"을 누르세요.": "Chưa có kết quả đã lưu. Bấm \"Lưu\" ở phần kết quả.", "기록 저장": "Lưu", "예시 값으로 되돌리기": "Về giá trị mẫu", "삭제": "Xoá", "칸을 넣어 주세요.": ": vui lòng nhập.", "세로값 거리·가로값 거리·각도 중 두 개": "2 trong 3 ô: đứng · ngang · góc", "가로값·세로값·각도 중 두 개 (각도는 90~180)": "2 trong 3 ô: ngang · đứng · góc (góc 90~180)", "각도 (90~180 사이)": "Góc (từ 90 đến 180)", "앵글사이즈가 T보다 커야 합니다.": "Cỡ thép V phải lớn hơn T.", "앵글사이즈에 비해 길이가 너무 짧습니다.": "Chiều dài quá ngắn so với cỡ thép V.", "앵글사이즈가 너무 커서 ② 안쪽선이 그려지지 않습니다.": "Cỡ thép V quá lớn, không vẽ được mép trong ②.", "가로값 거리가 너무 짧습니다.": "Khoảng cách ngang quá ngắn.", "길이가 너무 짧습니다.": "Chiều dài quá ngắn.", "A타입: ② 바깥선은 가로값 거리 지점(바닥)에서 각도대로 올라가 ① 두께(T) 안쪽면에서 끝납니다. 위 끝은 ① 면에 맞춰 세로로, 아래 끝은 바닥에 맞춰 수평으로 자릅니다.": "Loại A: mép ngoài ② đi lên theo góc từ điểm khoảng cách ngang (sàn) và kết thúc ở mặt trong độ dày T của ①. Đầu trên cắt đứng theo mặt ①, đầu dưới cắt ngang theo sàn.", "값 = ② 두께선 길이 (① T면 → 바닥).": "Giá trị = chiều dài đường T của ② (mặt T ① → sàn).", "세로값 거리 = 바닥에서 ② 위 끝(① T면에 닿는 점)까지. 가로값 거리 = ① 바깥면(세워진 앵글 끝)에서 ② 아래 끝(바닥)까지.": "Khoảng cách đứng = từ sàn đến đầu trên ② (điểm chạm mặt T ①). Khoảng cách ngang = từ mặt ngoài ① (mép thép V đứng) đến đầu dưới ② (sàn).", "세로값·가로값·각도 중 마지막에 넣은 두 개로 나머지 하나를 계산합니다. 각도는 위·아래 중 하나만 넣으면 됩니다.": "Trong 3 ô đứng · ngang · góc, 2 ô nhập sau cùng dùng để tính ô còn lại. Góc chỉ cần nhập trên hoặc dưới.", "세로값·가로값·각도 중 마지막에 넣은 두 개로 나머지 하나를 계산합니다.": "Trong 3 ô đứng · ngang · góc, 2 ô nhập sau cùng dùng để tính ô còn lại.", "표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.": "Kết quả làm tròn số nguyên. Trước khi chế tạo hãy kiểm tra lại bằng bản vẽ thực tế (hiện đồ).", "B타입: ② 가 ① 바깥면에 바로 붙습니다. 세로값 거리 = 바닥에서 ② 바깥선이 ① 면에 닿는 높이, 가로값 거리 = ① 면에서 ② 바깥선이 바닥에 닿는 점까지.": "Loại B: ② áp trực tiếp vào mặt ngoài ①. Khoảng cách đứng = chiều cao từ sàn đến điểm mép ngoài ② chạm mặt ①, khoảng cách ngang = từ mặt ① đến điểm mép ngoài ② chạm sàn.", "값 = ② 두께선 길이 (① 면 → 바닥). ① 앵글은 그림으로만 표시하고 계산에는 쓰지 않습니다.": "Giá trị = chiều dài đường T của ② (mặt ① → sàn). Thép V ① chỉ vẽ minh hoạ, không dùng để tính.", "C타입: ① 과 ② 를 각도대로 맞대기(마이터) 이음. 각도·앵글사이즈·T만 넣으면 이음 단차 두 개를 계산합니다.": "Loại C: nối vát ① và ② theo góc. Chỉ cần nhập góc · cỡ thép V · T là tính được 2 độ lệch mối nối.", "안쪽끝 → T선 = (앵글사이즈 − T) × tan(꺾인 각의 절반), T선 → 바깥 모서리 = T × tan(꺾인 각의 절반). 꺾인 각 = 180 − 사이각.": "Mép trong → đường T = (cỡ thép V − T) × tan(nửa góc gập), đường T → góc ngoài = T × tan(nửa góc gập). Góc gập = 180 − góc kẹp.", "그림의 길이는 모양만 보여 주는 그림이고 실제 길이가 아닙니다.": "Hình vẽ chỉ minh hoạ hình dạng, không đúng tỉ lệ thật.", "그림은 모양만 보여 주는 고정 그림입니다. 표시는 모두 반올림한 정수. 실제 제작 전 현도로 꼭 검증하세요.": "Hình vẽ cố định chỉ minh hoạ hình dạng. Kết quả làm tròn số nguyên. Trước khi chế tạo hãy kiểm tra lại bằng hiện đồ.", "D타입: C타입과 같은 맞대기(마이터) 이음에 길이까지 계산합니다.": "Loại D: nối vát giống loại C và tính cả chiều dài.", "① 길이 = ① 바깥(위) 길이 (비워도 됨). 가로값·세로값 = 바깥 모서리에서 ② 바깥 끝까지. 가로값·세로값·각도 중 마지막에 넣은 두 개로 나머지를 계산합니다.": "Chiều dài ① = chiều dài mép ngoài (trên) của ① (có thể để trống). Ngang · đứng = từ góc ngoài đến đầu ngoài ②. 2 ô nhập sau cùng trong ngang · đứng · góc dùng để tính ô còn lại.", "값 = ② 두께선 길이 (이음선이 ① T선과 만나는 점 → ② 끝) = 바깥 길이 − T × tan(꺾인 각의 절반).": "Giá trị = chiều dài đường T của ② (từ điểm đường nối gặp đường T ① → đầu ②) = chiều dài ngoài − T × tan(nửa góc gập).", "안쪽 길이 = 바깥 길이 − 앵글사이즈 × tan(꺾인 각의 절반). ② 끝은 직각 절단.": "Chiều dài trong = chiều dài ngoài − cỡ thép V × tan(nửa góc gập). Đầu ② cắt vuông.", "E타입: ① 과 ② 를 맞대기(마이터) 이음하고, ② 아래 끝은 ① 과 나란히(수평) 자릅니다.": "Loại E: nối vát ① và ②, đầu dưới ② cắt song song với ① (cắt ngang).", "위 이음: 안쪽끝 → T선 = (앵글사이즈 − T) × tan(꺾인 각의 절반), T선 → 바깥 = T × tan(꺾인 각의 절반).": "Nối trên: mép trong → đường T = (cỡ thép V − T) × tan(nửa góc gập), đường T → ngoài = T × tan(nửa góc gập).", "아래 끝: 안쪽끝 → T선 = (앵글사이즈 − T) ÷ tan(꺾인 각), T선 → 바깥 끝 = T ÷ tan(꺾인 각). 꺾인 각 = 180 − 사이각.": "Đầu dưới: mép trong → đường T = (cỡ thép V − T) ÷ tan(góc gập), đường T → mép ngoài = T ÷ tan(góc gập). Góc gập = 180 − góc kẹp.", "길이 = ② 두께선 길이(입력, 비워도 됨). 넣으면 ② 바깥선·안쪽선 길이도 계산합니다.": "Chiều dài = chiều dài đường T của ② (nhập, có thể để trống). Nếu nhập sẽ tính cả chiều dài mép ngoài · mép trong của ②.", "F타입: 세로 ① 앵글 아래 끝에 ② 앵글을 각도대로 맞대기(마이터) 이음합니다. 각도 = ① 과 ② 사이 각도(예 138.56, 소수점 가능).": "Loại F: nối vát ② vào đầu dưới thép V ① đứng theo góc. Góc = góc kẹp giữa ① và ② (VD 138.56, được nhập số lẻ).", "이음 단차 = 앵글사이즈 × tan(꺾인 각의 절반), 꺾인 각 = 180 − 사이각. 예: 50 × tan(20.72°) = 19.": "Độ lệch mối nối = cỡ thép V × tan(nửa góc gập), góc gập = 180 − góc kẹp. VD: 50 × tan(20.72°) = 19.", "T선까지 나누면 (앵글사이즈 − T) × tan / T × tan. 그림은 모양만 보여 주는 고정 그림입니다. 표시는 반올림 정수, 제작 전 현도로 꼭 검증하세요.": "Chia theo đường T: (cỡ thép V − T) × tan / T × tan. Hình vẽ cố định chỉ minh hoạ. Kết quả làm tròn, trước khi chế tạo hãy kiểm tra bằng hiện đồ.", "세로값 거리": "Khoảng cách đứng", "가로값 거리": "Khoảng cách ngang", "앵글사이즈": "Cỡ thép V", "값": "Giá trị", "전체 길이": "Tổng chiều dài", "① 길이": "Chiều dài ①", "이음 단차": "Độ lệch nối", "아래 끝": "Đầu dưới", "② 끝": "Đầu ②", "길이": "Chiều dài", "각도": "Góc", "기록 ": "Bản ghi ", "최종 ": "Cắt ", "세로 ": "Đứng ", "가로 ": "Ngang ", "이음 ": "Nối ", "위 ": "Trên ", "아래 ": "Dưới ", "(안 ": "(trong "};
+  var KEYS = Object.keys(VI).sort(function(a, b){ return b.length - a.length; });
+  var lang = null;
+  try { lang = localStorage.getItem("ang-lang"); } catch(e){}
+  if (!lang) lang = "vi";   // 한국 버전 = ko, 베트남 버전 = vi
+  function tr(s){
+    if (!s || !/[가-힣]/.test(s)) return s;
+    s = s.replace(/([A-F])타입 앵글 계산기/g, "Máy tính thép V – Loại $1");
+    for (var i = 0; i < KEYS.length; i++) if (s.indexOf(KEYS[i]) >= 0) s = s.split(KEYS[i]).join(VI[KEYS[i]]);
+    s = s.replace(/([A-F])타입/g, "Loại $1");
+    return s;
+  }
+  function walk(root){
+    var w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), n, v;
+    while ((n = w.nextNode())) { v = tr(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v; }
+    root.querySelectorAll("[placeholder],[aria-label]").forEach(function(e){
+      ["placeholder", "aria-label"].forEach(function(a){ var x = e.getAttribute(a); if (x && /[가-힣]/.test(x)) e.setAttribute(a, tr(x)); });
+    });
+  }
+  var btn = document.createElement("button");
+  btn.id = "langBtn"; btn.type = "button";
+  btn.textContent = lang === "vi" ? "한국어" : "Tiếng Việt";
+  btn.addEventListener("click", function(){
+    try { localStorage.setItem("ang-lang", lang === "vi" ? "ko" : "vi"); } catch(e){}
+    location.reload();
+  });
+  var row = document.createElement("div"); row.className = "langRow"; row.appendChild(btn);
+  var hd = document.querySelector("header"); if (hd) hd.insertBefore(row, hd.firstChild); else document.body.appendChild(row);
+  if (lang === "vi") {
+    document.documentElement.lang = "vi";
+    walk(document.body);
+    var obs = new MutationObserver(function(){ obs.disconnect(); walk(document.body); obs.observe(document.body, {childList:true, subtree:true, characterData:true}); });
+    obs.observe(document.body, {childList:true, subtree:true, characterData:true});
+  }
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) { navigator.serviceWorker.register("sw.js").catch(function(){}); }
+</script>
+</body></html>
